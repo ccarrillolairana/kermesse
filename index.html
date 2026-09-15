@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Gestión de Kermesse</title>
+<meta name="description" content="Sistema completo para digitalizar la organización, ventas, entregas, rendiciones y cierre de Kermesse.">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================ */
+  /* DESIGN SYSTEM - TEAL & WARM GRAY (HEREDADO DE COMERCIOPRO)   */
+  /* ============================================================ */
+  :root {
+    --cs-dark: #082126;
+    --cs-indigo: #082126;
+    --cs-indigo-light: #0D3B40;
+    --cs-indigo-vivid: #115959;
+    --cs-indigo-soft: rgba(17, 89, 89, 0.08);
+    --cs-teal: #115959;
+    --cs-teal-light: #1F7354;
+    --cs-teal-soft: rgba(31, 115, 84, 0.08);
+    --cs-amber: #D97706;
+    --cs-amber-soft: rgba(217, 119, 6, 0.08);
+    --cs-red: #DC2626;
+    --cs-red-soft: #FEF2F2;
+    --cs-blue: #2563EB;
+    --cs-blue-soft: rgba(37, 99, 235, 0.08);
+    --cs-purple: #7C3AED;
+    --cs-purple-soft: rgba(124, 58, 237, 0.08);
+
+    --surface: #F2F1F0;
+    --surface-raised: #FFFFFF;
+    --surface-glass: rgba(255, 255, 255, 0.78);
+    --border: rgba(8, 33, 38, 0.10);
+    --border-active: rgba(8, 33, 38, 0.25);
+
+    --text-primary: #082126;
+    --text-secondary: #334A4D;
+    --text-muted: #6B7C80;
+    --text-inverse: #FFFFFF;
+
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-lg: 24px;
+
+    --shadow-sm: 0 1px 3px rgba(8, 33, 38, 0.06);
+    --shadow-md: 0 4px 16px rgba(8, 33, 38, 0.08);
+    --shadow-lg: 0 12px 40px rgba(8, 33, 38, 0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--surface);
+    color: var(--text-primary);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(17, 89, 89, 0.05) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(31, 115, 84, 0.04) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 50%, rgba(8, 33, 38, 0.02) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-active); border-radius: 3px; }
+
+  /* ==================== SPINNER & TOAST ==================== */
+  .spinner-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(242, 241, 240, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10000; opacity: 1; transition: opacity 0.3s;
+  }
+  .spinner-overlay.hidden { opacity: 0; pointer-events: none; }
+  .cs-spinner {
+    width: 60px; height: 60px; border-radius: 50%;
+    border: 4px solid var(--cs-indigo-soft);
+    border-top-color: var(--cs-indigo);
+    border-right-color: var(--cs-teal);
+    border-bottom-color: var(--cs-teal-light);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; }
+
+  /* ==================== AUTH SCREEN ==================== */
+  .auth-wrap {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--cs-indigo) 0%, var(--cs-indigo-light) 40%, var(--cs-teal) 75%, var(--cs-teal-light) 100%);
+    position: relative; overflow: hidden; padding: 20px;
+  }
+  .auth-wrap::before {
+    content: ''; position: absolute; width: 500px; height: 500px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(31, 115, 84, 0.15) 0%, transparent 70%);
+    top: -150px; right: -100px; animation: float 8s ease-in-out infinite;
+  }
+  @keyframes float { 0%,100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-30px) scale(1.05); } }
+
+  .auth-card {
+    background: var(--surface-glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.4); border-radius: var(--radius-lg);
+    padding: 2.2rem 2rem; width: 100%; max-width: 440px;
+    box-shadow: var(--shadow-lg), 0 0 80px rgba(8, 33, 38, 0.15);
+    position: relative; z-index: 1; animation: slideUp 0.5s ease-out;
+  }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
+
+  .accent-bar { display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-bottom: 1.2rem; }
+  .accent-bar span { flex: 1; }
+  .accent-bar .bar-indigo { background: var(--cs-indigo); }
+  .accent-bar .bar-teal { background: var(--cs-teal); }
+  .accent-bar .bar-amber { background: var(--cs-teal-light); }
+
+  .auth-logo-wrap { text-align: center; margin-bottom: 1.2rem; }
+  .auth-icon-circle {
+    width: 76px; height: 76px; border-radius: 22px;
+    background: linear-gradient(135deg, var(--cs-indigo), var(--cs-teal));
+    display: inline-flex; align-items: center; justify-content: center; margin-bottom: 10px;
+    box-shadow: 0 8px 24px rgba(8, 33, 38, 0.25);
+  }
+  .auth-icon-circle i { font-size: 2.2rem; color: white; }
+
+  .auth-title { font-size: 1.55rem; font-weight: 900; letter-spacing: -0.5px; color: var(--cs-indigo); }
+  .auth-subtitle { color: var(--text-secondary); font-size: 0.85rem; margin-top: 2px; }
+
+  .auth-input {
+    width: 100%; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    padding: 11px 14px; font-size: 0.9rem; font-family: inherit;
+    background: rgba(255,255,255,0.8); transition: all 0.2s; outline: none;
+  }
+  .auth-input:focus { border-color: var(--cs-indigo-vivid); background: white; box-shadow: 0 0 0 4px rgba(17, 89, 89, 0.08); }
+  .auth-label { display: block; font-weight: 600; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 5px; }
+
+  .auth-btn {
+    width: 100%; padding: 12px; border: none; border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--cs-indigo) 0%, var(--cs-indigo-vivid) 100%);
+    color: white; font-weight: 700; font-size: 0.95rem; cursor: pointer; font-family: inherit;
+    transition: all 0.25s; box-shadow: 0 4px 15px rgba(8, 33, 38, 0.2);
+  }
+  .auth-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(8, 33, 38, 0.3); }
+
+  .role-chip-group { display: flex; gap: 6px; margin-bottom: 15px; flex-wrap: wrap; }
+  .role-chip { flex: 1; min-width: 90px; text-align: center; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.72rem; font-weight: 700; cursor: pointer; background: white; transition: all .2s; }
+  .role-chip.active { background: var(--cs-indigo); color: white; border-color: var(--cs-indigo); }
+
+  /* ==================== LAYOUT & SIDEBAR ==================== */
+  .app-layout { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+
+  .sidebar {
+    width: 268px; background: var(--surface-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid var(--border); padding: 18px 12px; position: fixed; top: 0; left: 0; height: 100vh;
+    overflow-y: auto; z-index: 50; display: flex; flex-direction: column;
+  }
+  .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 14px; text-decoration: none; }
+  .sidebar-brand-icon {
+    width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--cs-indigo), var(--cs-teal-light)); color: #fff; font-size: 1.1rem; flex-shrink: 0;
+  }
+  .sidebar-brand-text { font-weight: 900; font-size: 1.1rem; letter-spacing: -0.5px; color: var(--cs-indigo); line-height: 1.1; }
+  .sidebar-brand-text small { font-size: 0.6rem; font-weight: 600; color: var(--text-muted); letter-spacing: .5px; text-transform: uppercase; display: block; margin-top: 2px; }
+
+  .sidebar-user { padding: 8px 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; background: rgba(8,33,38,.04); border-radius: var(--radius-sm); }
+  .avatar-circle { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--cs-indigo); color: #fff; font-weight: 700; font-size: .8rem; flex-shrink: 0; }
+
+  .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  .sidebar-section { font-size: .65rem; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted); padding: 12px 14px 4px; }
+  .sidebar-nav a {
+    display: flex; align-items: center; gap: 11px; padding: 9px 14px; border-radius: var(--radius-sm);
+    color: var(--text-secondary); text-decoration: none; font-size: 0.86rem; font-weight: 500; transition: all 0.2s; position: relative;
+  }
+  .sidebar-nav a:hover { background: rgba(17,89,89,0.06); color: var(--cs-indigo-light); }
+  .sidebar-nav a.active { background: linear-gradient(135deg, rgba(17,89,89,0.14), rgba(17,89,89,0.04)); color: var(--cs-indigo-light); font-weight: 700; }
+  .sidebar-nav a.active::before {
+    content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 4px; height: 50%;
+    background: linear-gradient(180deg, var(--cs-indigo-vivid), var(--cs-teal-light)); border-radius: 0 4px 4px 0;
+  }
+  .sidebar-nav a i { font-size: 1.05rem; width: 18px; text-align: center; }
+  .sidebar-nav a .nav-badge { margin-left: auto; font-size: .65rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; background: var(--cs-red-soft); color: var(--cs-red); }
+
+  .sidebar-footer { padding-top: 10px; border-top: 1px solid var(--border); margin-top: 10px; }
+  .sidebar-footer a { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--cs-red); text-decoration: none; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; }
+  .sidebar-footer a:hover { background: var(--cs-red-soft); }
+
+  .main-content { margin-left: 268px; padding: 28px 36px; flex: 1; max-width: 1440px; }
+
+  .top-nav {
+    display: none; align-items: center; justify-content: space-between; padding: 12px 18px; margin-bottom: 20px;
+    background: var(--surface-glass); border-bottom: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .top-nav-brand { font-weight: 900; font-size: 1.05rem; color: var(--cs-indigo); display:flex; align-items:center; gap:8px; }
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface-glass);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border);
+    display: flex; z-index: 100; padding: 6px 0 env(safe-area-inset-bottom, 6px); overflow-x: auto;
+  }
+  .bottom-nav a { flex: 0 0 auto; min-width: 64px; display: flex; flex-direction: column; align-items: center; padding: 4px 6px; color: var(--text-muted); font-size: 0.62rem; text-decoration: none; gap: 2px; font-weight: 500; }
+  .bottom-nav a i { font-size: 1.15rem; }
+  .bottom-nav a.active { color: var(--cs-indigo-light); font-weight: 700; }
+
+  @media (max-width: 991px) {
+    .sidebar { display: none; }
+    .main-content { margin-left: 0; padding: 16px 16px 85px; max-width: 100%; }
+    .top-nav { display: flex !important; }
+  }
+  @media (min-width: 992px) { .bottom-nav { display: none !important; } }
+
+  .page { display: none; animation: fadeIn .35s ease-out; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .section-title { font-weight: 850; font-size: 1.35rem; margin-bottom: .3rem; display: flex; align-items: center; gap: 12px; color: var(--text-primary); }
+  .section-title i { font-size: 1.4rem; background: linear-gradient(135deg, var(--cs-indigo), var(--cs-teal-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .section-sub { color: var(--text-muted); font-size: .85rem; margin-bottom: 1.5rem; }
+
+  /* ==================== CARDS & STATS ==================== */
+  .cs-card { background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); transition: all .25s; overflow: hidden; }
+  .cs-card:hover { box-shadow: var(--shadow-md); }
+  .cs-card-header { padding: 14px 18px; font-weight: 750; font-size: .92rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, rgba(8,33,38,0.03), rgba(17,89,89,0.02)); gap:10px; flex-wrap: wrap; }
+  .cs-card-body { padding: 18px; }
+
+  .stat-card { border-radius: var(--radius); padding: 1.1rem 1.25rem; position: relative; overflow: hidden; transition: transform .25s; height: 100%; }
+  .stat-card:hover { transform: translateY(-3px); }
+  .stat-card .stat-value { font-size: 1.65rem; font-weight: 900; line-height: 1.1; }
+  .stat-card .stat-label { font-size: .73rem; color: var(--text-secondary); margin-top: 6px; font-weight: 600; }
+  .stat-card .stat-icon { position: absolute; top: 12px; right: 14px; font-size: 1.6rem; opacity: .12; }
+
+  .stat-indigo { background: var(--cs-indigo-soft); border: 1px solid rgba(17,89,89,0.15); } .stat-indigo .stat-value { color: var(--cs-indigo-light); }
+  .stat-teal { background: var(--cs-teal-soft); border: 1px solid rgba(31,115,84,0.15); } .stat-teal .stat-value { color: var(--cs-teal); }
+  .stat-amber { background: var(--cs-amber-soft); border: 1px solid rgba(217,119,6,0.2); } .stat-amber .stat-value { color: var(--cs-amber); }
+  .stat-red { background: var(--cs-red-soft); border: 1px solid rgba(220,38,38,0.15); } .stat-red .stat-value { color: var(--cs-red); }
+  .stat-blue { background: var(--cs-blue-soft); border: 1px solid rgba(37,99,235,.18); } .stat-blue .stat-value { color: var(--cs-blue); }
+  .stat-purple { background: var(--cs-purple-soft); border: 1px solid rgba(124,58,237,.18); } .stat-purple .stat-value { color: var(--cs-purple); }
+
+  /* ==================== BADGES & TABLES ==================== */
+  .badge-pill { font-size: .7rem; padding: 4px 10px; border-radius: 20px; font-weight: 700; display: inline-flex; align-items: center; gap:4px; white-space:nowrap; }
+  .badge-ok { background: var(--cs-teal-soft); color: var(--cs-teal); border: 1px solid rgba(31,115,84,.15); }
+  .badge-warn { background: var(--cs-amber-soft); color: var(--cs-amber); border: 1px solid rgba(217,119,6,.2); }
+  .badge-bad { background: var(--cs-red-soft); color: var(--cs-red); border: 1px solid rgba(220,38,38,.15); }
+  .badge-neutral { background: var(--cs-indigo-soft); color: var(--cs-indigo-light); border: 1px solid rgba(17,89,89,.12); }
+  .badge-info { background: var(--cs-blue-soft); color: var(--cs-blue); border: 1px solid rgba(37,99,235,.18); }
+  .badge-purple { background: var(--cs-purple-soft); color: var(--cs-purple); border: 1px solid rgba(124,58,237,.18); }
+
+  table.cs-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  table.cs-table thead th { text-align: left; padding: 10px 12px; font-size: .7rem; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); border-bottom: 2px solid var(--border); font-weight: 700; white-space: nowrap; }
+  table.cs-table tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  table.cs-table tbody tr:hover { background: rgba(17,89,89,0.03); }
+  .table-responsive-wrap { overflow-x: auto; }
+
+  /* ==================== POS & INTERFAZ TÁCTIL ==================== */
+  .pos-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 1200px) { .pos-grid { grid-template-columns: 1fr; } }
+  .product-pick { display: flex; align-items:center; gap:10px; padding: 10px 12px; border:1px solid var(--border); border-radius: var(--radius-sm); background:#fff; cursor:pointer; transition: all .18s; margin-bottom:8px; }
+  .product-pick:hover { border-color: var(--cs-teal); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+  .product-pick .pp-icon { width:38px;height:38px;border-radius:10px;background:var(--cs-teal-soft);display:flex;align-items:center;justify-content:center;color:var(--cs-teal);flex-shrink:0; }
+  .product-pick .pp-info { flex:1; min-width:0; }
+  .product-pick .pp-name { font-weight:650; font-size:.86rem; }
+  .product-pick .pp-meta { font-size:.72rem; color:var(--text-muted); }
+  .product-pick .pp-price { font-weight:800; color:var(--cs-indigo-light); font-size:.9rem; white-space:nowrap; }
+
+  .cart-row { display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--border); }
+  .cart-row:last-child { border-bottom:none; }
+  .cart-qty { width: 56px; text-align:center; }
+  .cart-remove { color: var(--cs-red); cursor:pointer; background:none; border:none; font-size:1rem; }
+
+  .totals-box { background: rgba(8,33,38,.03); border-radius: var(--radius-sm); padding: 14px 16px; }
+  .totals-row { display:flex; justify-content:space-between; font-size:.86rem; padding:4px 0; }
+  .totals-row.grand { font-size:1.25rem; font-weight:900; color: var(--cs-indigo-light); border-top: 1px dashed var(--border); margin-top:6px; padding-top:10px; }
+
+  .search-panel { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; background: rgba(8,33,38,0.03); padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  .search-panel .form-control, .search-panel .form-select { width: auto; min-width: 170px; }
+
+  .driver-order-card { background: white; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow-sm); }
+  .driver-order-card .doc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .driver-order-card .doc-title { font-weight: 850; font-size: 1.05rem; color: var(--cs-indigo); }
+  .driver-order-card .doc-total { font-weight: 900; font-size: 1.15rem; color: var(--cs-teal); }
+</style>
+</head>
+<body>
+
+<!-- LOADING SPINNER -->
+<div id="loadingSpinner" class="spinner-overlay hidden"><div class="cs-spinner"></div></div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ==================== AUTH SCREEN ==================== -->
+<div id="authScreen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="accent-bar"><span class="bar-indigo"></span><span class="bar-teal"></span><span class="bar-amber"></span></div>
+      <div class="auth-logo-wrap">
+        <div class="auth-icon-circle"><i class="bi bi-balloon-fill"></i></div>
+        <div class="auth-title">KERMESSE 2026</div>
+        <div class="auth-subtitle">Sistema de Administración & Rendición Financiera</div>
+      </div>
+
+      <label class="auth-label text-center d-block mb-1">Seleccionar Perfil Demo Rápido</label>
+      <div class="role-chip-group">
+        <div class="role-chip active" onclick="selectDemoUser('admin')">Admin</div>
+        <div class="role-chip" onclick="selectDemoUser('cocina')">Cocina</div>
+        <div class="role-chip" onclick="selectDemoUser('repartidor')">Repartidor</div>
+        <div class="role-chip" onclick="selectDemoUser('caja')">Cajero</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="auth-label">Correo Electrónico</label>
+        <input type="email" id="loginEmail" class="auth-input" value="admin@kermesse.bo">
+      </div>
+      <div class="mb-3">
+        <label class="auth-label">Contraseña</label>
+        <input type="password" id="loginPass" class="auth-input" value="demo1234">
+      </div>
+      <button class="auth-btn" onclick="doLogin()"><i class="bi bi-box-arrow-in-right me-2"></i>Ingresar al Sistema</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== APP SCREEN ==================== -->
+<div id="appScreen" style="display:none">
+  <div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <a href="#" class="sidebar-brand" onclick="return false">
+        <div class="sidebar-brand-icon"><i class="bi bi-balloon-fill"></i></div>
+        <div class="sidebar-brand-text">KERMESSE<small>Gestión Integral</small></div>
+      </a>
+
+      <div class="sidebar-user">
+        <div class="avatar-circle" id="userAvatar">AD</div>
+        <div style="line-height:1.2;overflow:hidden">
+          <div class="fw-bold" style="font-size:.85rem" id="userName">Administrador</div>
+          <div class="text-muted" style="font-size:.7rem" id="userRole">Rol: Administrador</div>
+        </div>
+      </div>
+
+      <div class="accent-bar mb-2"><span class="bar-indigo"></span><span class="bar-teal"></span><span class="bar-amber"></span></div>
+
+      <nav class="sidebar-nav" id="sidebarNav">
+        <a href="#" id="nav-dashboard" class="active" onclick="switchPage('dashboard');return false"><i class="bi bi-speedometer2"></i>Dashboard</a>
+
+        <div class="sidebar-section">Operación Kermesse</div>
+        <a href="#" id="nav-nuevopedido" onclick="switchPage('nuevopedido');return false"><i class="bi bi-cart-plus-fill"></i>Nuevo Pedido (POS)</a>
+        <a href="#" id="nav-pedidos" onclick="switchPage('pedidos');return false"><i class="bi bi-receipt"></i>Todos los Pedidos</a>
+        <a href="#" id="nav-mispedidos" onclick="switchPage('mispedidos');return false"><i class="bi bi-person-badge-fill"></i>Mis Pedidos (Repartidor)</a>
+
+        <div class="sidebar-section">Despacho & Cajas</div>
+        <a href="#" id="nav-entregas" onclick="switchPage('entregas');return false"><i class="bi bi-truck"></i>Asignar Entregas</a>
+        <a href="#" id="nav-ayudas" onclick="switchPage('ayudas');return false"><i class="bi bi-heart-fill"></i>Ayudas Económicas</a>
+        <a href="#" id="nav-rendiciones" onclick="switchPage('rendiciones');return false"><i class="bi bi-cash-stack"></i>Rendición de Dinero</a>
+
+        <div class="sidebar-section">Maestros & Reportes</div>
+        <a href="#" id="nav-categorias" onclick="switchPage('categorias');return false"><i class="bi bi-tags-fill"></i>Categorías</a>
+        <a href="#" id="nav-productos" onclick="switchPage('productos');return false"><i class="bi bi-egg-fried"></i>Productos & Platos</a>
+        <a href="#" id="nav-reportes" onclick="switchPage('reportes');return false"><i class="bi bi-pie-chart-fill"></i>Reportes & Cierre</a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="#" onclick="doLogout();return false"><i class="bi bi-box-arrow-right"></i>Cerrar sesión</a>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+      <nav class="top-nav">
+        <div class="top-nav-brand"><i class="bi bi-balloon-fill" style="color:var(--cs-teal)"></i> KERMESSE 2026</div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge" style="background:var(--cs-indigo);font-size:.75rem;padding:5px 10px;border-radius:20px" id="topUserRole">Admin</span>
+          <a href="#" onclick="doLogout();return false" class="btn btn-sm btn-light"><i class="bi bi-box-arrow-right text-danger"></i></a>
+        </div>
+      </nav>
+
+      <!-- ==================== DASHBOARD ==================== -->
+      <div id="page-dashboard" class="page active">
+        <div class="section-title"><i class="bi bi-speedometer2"></i>Dashboard General de Kermesse</div>
+        <div class="section-sub">Resumen en tiempo real de ventas, recaudaciones, entregas y donaciones.</div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-md-3">
+            <div class="stat-card stat-teal">
+              <div class="stat-value" id="stat-total-ventas">Bs 0.00</div>
+              <div class="stat-label">Ventas Totales (Platos/Bebidas)</div>
+              <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="stat-card stat-indigo">
+              <div class="stat-value" id="stat-ayudas">Bs 0.00</div>
+              <div class="stat-label">Ayudas Económicas</div>
+              <div class="stat-icon"><i class="bi bi-heart-fill"></i></div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="stat-card stat-amber">
+              <div class="stat-value" id="stat-total-recaudado">Bs 0.00</div>
+              <div class="stat-label">Total Ingresado (Ventas + Ayudas)</div>
+              <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="stat-card stat-purple">
+              <div class="stat-value" id="stat-pedidos-count">0</div>
+              <div class="stat-label">Pedidos Registrados</div>
+              <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MAPA COMPLETO DE ENTREGAS Y RUTAS EN DASHBOARD -->
+        <div class="cs-card mb-4">
+          <div class="cs-card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-map-fill me-2 text-teal"></i>Mapa Interactivo de Entregas & Rutas</span>
+            <span class="badge bg-teal" id="dashMapDeliveryCount">0 Entregas Activas</span>
+          </div>
+          <div class="cs-card-body p-0">
+            <div id="dashMapEntregas" style="height: 340px; width: 100%; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; z-index: 1;"></div>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-7">
+            <div class="cs-card h-100">
+              <div class="cs-card-header"><span><i class="bi bi-bar-chart-line me-1"></i>Recaudación por Categoría</span></div>
+              <div class="cs-card-body" style="min-height:250px">
+                <canvas id="chartCategorias" style="max-height:240px;width:100%"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-5">
+            <div class="cs-card h-100">
+              <div class="cs-card-header"><span><i class="bi bi-pie-chart me-1"></i>Formas de Pago (Efectivo vs QR)</span></div>
+              <div class="cs-card-body d-flex align-items-center justify-content-center" style="min-height:250px">
+                <canvas id="chartMetodosPago" style="max-height:240px;width:100%"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cs-card">
+          <div class="cs-card-header"><span><i class="bi bi-clock-history me-1"></i>Últimos Pedidos Registrados</span></div>
+          <div class="cs-card-body p-0">
+            <div class="table-responsive-wrap">
+              <table class="cs-table">
+                <thead><tr><th>N° Pedido</th><th>Cliente</th><th>Total</th><th>Estado Pedido</th><th>Estado Pago</th><th>Entrega</th></tr></thead>
+                <tbody id="tbl-dash-pedidos"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== NUEVO PEDIDO (POS) ==================== -->
+      <div id="page-nuevopedido" class="page">
+        <div class="section-title"><i class="bi bi-cart-plus-fill"></i>Registro de Nuevo Pedido</div>
+        <div class="section-sub">Selecciona los platos/bebidas y registra el pedido de la kermesse.</div>
+
+        <div class="pos-grid">
+          <div>
+            <div class="search-panel mb-3">
+              <input type="text" class="form-control" id="fPosBusca" placeholder="Buscar plato o bebida..." oninput="renderPosProducts()">
+              <select class="form-select" id="fPosCat" onchange="renderPosProducts()">
+                <option value="">Todas las categorías</option>
+              </select>
+            </div>
+            <div id="posProductContainer" style="max-height: 520px; overflow-y: auto; padding-right: 4px;"></div>
+          </div>
+
+          <div class="cs-card">
+            <div class="cs-card-header"><span><i class="bi bi-bag-check me-1"></i>Canasta del Pedido</span></div>
+            <div class="cs-card-body">
+              <div class="mb-2">
+                <label class="form-label fw-bold">Cliente / Persona</label>
+                <input type="text" class="form-control form-control-sm mb-1" id="posClienteNombre" value="Público General" placeholder="Nombre completo del cliente">
+                <div class="row g-2">
+                  <div class="col-12">
+                    <label class="form-label small mb-1 text-muted">Teléfono / WhatsApp (0 por defecto)</label>
+                    <input type="text" class="form-control form-control-sm" id="posClienteTel" value="0" placeholder="Ej: 71234567">
+                  </div>
+                </div>
+              </div>
+              <div class="mb-2">
+                <label class="form-label fw-bold">Método de Entrega</label>
+                <select class="form-select form-select-sm" id="posEntregaSelect" onchange="togglePosDeliveryFields()">
+                  <option value="MET000001">RECOJO_SITIO - Recojo en Sitio</option>
+                  <option value="MET000002">PARA_LLEVAR - Para Llevar</option>
+                  <option value="MET000003">DOMICILIO - Delivery a Domicilio</option>
+                </select>
+              </div>
+
+              <!-- Sección de Dirección y Ubicación en Mapa (Se activa al elegir Para Llevar o Domicilio) -->
+              <div id="posDeliveryBox" class="mb-3 p-2 rounded bg-light border hidden">
+                <label class="form-label small fw-bold text-teal"><i class="bi bi-house-door me-1"></i>Dirección de Entrega <span class="text-danger">*</span></label>
+                <textarea id="posDireccion" class="form-control form-control-sm mb-2" rows="2" placeholder="Dirección exacta, zona, nro de casa..."></textarea>
+                
+                <input type="hidden" id="posLat" value="">
+                <input type="hidden" id="posLng" value="">
+
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="small text-muted" id="posMapStatusText"><i class="bi bi-geo-alt"></i> Sin ubicación en mapa</span>
+                  <button type="button" class="btn btn-sm btn-outline-teal" onclick="openMapPicker('pos')">
+                    <i class="bi bi-geo-alt-fill me-1"></i>Adjuntar Ubicación
+                  </button>
+                </div>
+              </div>
+
+              <div id="posCartRows" style="max-height: 220px; overflow-y: auto; border-top:1px solid var(--border); border-bottom:1px solid var(--border);" class="py-2 mb-3"></div>
+
+              <div class="totals-box mb-3">
+                <div class="totals-row"><span>Subtotal:</span><span id="posSubtotal">Bs 0.00</span></div>
+                <div class="totals-row"><span>Descuento:</span><span><input type="number" id="posDescuento" value="0" class="form-control form-control-sm text-end style-inline" style="width:70px;display:inline" onchange="calculatePosTotals()"></span></div>
+                <div class="totals-row grand"><span>TOTAL:</span><span id="posTotal">Bs 0.00</span></div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Pago Inicial al Registrar (Opcional)</label>
+                <div class="row g-2">
+                  <div class="col-6">
+                    <select class="form-select form-select-sm" id="posPagoTipo">
+                      <option value="TPG000001">EFECTIVO</option>
+                      <option value="TPG000002">QR</option>
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <input type="number" id="posPagoMonto" placeholder="Monto Bs" class="form-control form-control-sm">
+                  </div>
+                  <div class="col-12 mt-1">
+                    <input type="text" id="posPagoRef" placeholder="Referencia N° / Transacción QR (Opcional)" class="form-control form-control-sm">
+                  </div>
+                </div>
+              </div>
+
+              <button class="btn btn-primary w-100 py-2 fw-bold" onclick="submitPosPedido()"><i class="bi bi-check-circle me-1"></i>Confirmar & Guardar Pedido</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== TODOS LOS PEDIDOS ==================== -->
+      <div id="page-pedidos" class="page">
+        <div class="section-title"><i class="bi bi-receipt"></i>Administración de Pedidos</div>
+        <div class="section-sub">Filtra, actualiza estados operativos, gestiona pagos y auditoría.</div>
+
+        <div class="search-panel">
+          <input type="text" class="form-control" id="fPedBusca" placeholder="Buscar por N° pedido o cliente..." oninput="renderPedidosTable()">
+          <select class="form-select" id="fPedEstado" onchange="renderPedidosTable()"><option value="">Todos los estados</option></select>
+          <select class="form-select" id="fPedPago" onchange="renderPedidosTable()">
+            <option value="">Todos los estados de pago</option>
+            <option value="PENDIENTE">PENDIENTE</option>
+            <option value="PAGO PARCIAL">PAGO PARCIAL</option>
+            <option value="PAGADO">PAGADO</option>
+          </select>
+        </div>
+
+        <div class="cs-card">
+          <div class="cs-card-body p-0">
+            <div class="table-responsive-wrap">
+              <table class="cs-table">
+                <thead><tr><th>N° Pedido</th><th>Fecha</th><th>Cliente</th><th>Entrega</th><th>Total</th><th>Estado Pedido</th><th>Estado Pago</th><th>Acciones</th></tr></thead>
+                <tbody id="tbl-pedidos"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== MIS PEDIDOS (VISTA REPARTIDOR) ==================== -->
+      <div id="page-mispedidos" class="page">
+        <div class="section-title"><i class="bi bi-person-badge-fill"></i>Mis Pedidos Asignados (Repartidor)</div>
+        <div class="section-sub">Panel táctil simplificado para iniciar ruta y confirmar entregas.</div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-6 col-md-4">
+            <div class="stat-card stat-blue">
+              <div class="stat-value" id="driverAsignadosCount">0</div>
+              <div class="stat-label">Pedidos Asignados</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-4">
+            <div class="stat-card stat-purple">
+              <div class="stat-value" id="driverCaminoCount">0</div>
+              <div class="stat-label">En Camino</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="stat-card stat-teal">
+              <div class="stat-value" id="driverEntregadosCount">0</div>
+              <div class="stat-label">Entregados Hoy</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="driverOrdersContainer"></div>
+      </div>
+
+      <!-- ==================== ASIGNACIÓN DE ENTREGAS ==================== -->
+      <div id="page-entregas" class="page">
+        <div class="section-title"><i class="bi bi-truck"></i>Asignación de Entregas</div>
+        <div class="section-sub">Asigna pedidos listos a los responsables/repartidores autenticados.</div>
+
+        <div class="cs-card mb-4">
+          <div class="cs-card-header"><span><i class="bi bi-person-plus me-1"></i>Asignar Pedidos en Lote</span></div>
+          <div class="cs-card-body">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-6">
+                <label class="form-label">Persona Responsable / Repartidor</label>
+                <select class="form-select" id="entregasResponsableSelect"></select>
+              </div>
+              <div class="col-md-6">
+                <button class="btn btn-primary w-100" onclick="submitAsignacion()"><i class="bi bi-check2-square me-1"></i>Asignar Pedidos Seleccionados</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cs-card">
+          <div class="cs-card-header"><span>Pedidos Listos para Despacho / Asignar</span></div>
+          <div class="cs-card-body p-0">
+            <div class="table-responsive-wrap">
+              <table class="cs-table">
+                <thead><tr><th><input type="checkbox" id="chkAllAsignar" onchange="toggleSelectAllAsignar(this)"></th><th>N° Pedido</th><th>Cliente</th><th>Método</th><th>Total</th><th>Estado</th></tr></thead>
+                <tbody id="tbl-asignar-pedidos"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== AYUDAS ECONÓMICAS ==================== -->
+      <div id="page-ayudas" class="page">
+        <div class="section-title"><i class="bi bi-heart-fill"></i>Ayudas Económicas</div>
+        <div class="section-sub">Donaciones y aportes económicos independientes de la venta de productos.</div>
+
+        <div class="cs-card mb-4">
+          <div class="cs-card-header"><span>Registrar Nueva Ayuda Económica</span></div>
+          <div class="cs-card-body">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">Persona / Donante</label>
+                <input type="text" id="ayuPersona" class="form-control" placeholder="Ej: Juan Pérez">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Monto (Bs)</label>
+                <input type="number" id="ayuMonto" class="form-control" placeholder="100.00">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Tipo de Pago</label>
+                <select class="form-select" id="ayuTipoPago">
+                  <option value="TPG000001">EFECTIVO</option>
+                  <option value="TPG000002">QR</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Referencia QR</label>
+                <input type="text" id="ayuRef" class="form-control" placeholder="Ref N°">
+              </div>
+              <div class="col-12">
+                <button class="btn btn-primary" onclick="submitAyuda()"><i class="bi bi-plus-lg me-1"></i>Guardar Colaboración</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cs-card">
+          <div class="cs-card-header"><span>Historial de Ayudas Económicas</span></div>
+          <div class="cs-card-body p-0">
+            <div class="table-responsive-wrap">
+              <table class="cs-table">
+                <thead><tr><th>ID</th><th>Fecha</th><th>Donante</th><th>Monto</th><th>Tipo Pago</th><th>Referencia</th></tr></thead>
+                <tbody id="tbl-ayudas"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== RENDICIÓN DE DINERO ==================== -->
+      <div id="page-rendiciones" class="page">
+        <div class="section-title"><i class="bi bi-cash-stack"></i>Rendición de Dinero y Diferencias</div>
+        <div class="section-sub">Cierre de caja por repartidor y control de sobrantes/faltantes.</div>
+
+        <div class="cs-card mb-4">
+          <div class="cs-card-header"><span>Generar Rendición por Repartidor</span></div>
+          <div class="cs-card-body">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">Seleccionar Responsable</label>
+                <select class="form-select" id="rendResponsableSelect" onchange="calculateRendicionEsperado()"></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Efectivo Físico Declarado (Bs)</label>
+                <input type="number" id="rendEfectivoDecl" class="form-control" value="0" oninput="calculateRendicionCalculo()">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">QR Recibido Declarado (Bs)</label>
+                <input type="number" id="rendQrDecl" class="form-control" value="0" oninput="calculateRendicionCalculo()">
+              </div>
+
+              <div class="col-12">
+                <div class="p-3 border rounded bg-light">
+                  <div class="row text-center fw-bold">
+                    <div class="col-4">Esperado: <span id="rendTotalEsperado" class="text-primary">Bs 0.00</span></div>
+                    <div class="col-4">Declarado: <span id="rendTotalDeclarado" class="text-success">Bs 0.00</span></div>
+                    <div class="col-4">Diferencia: <span id="rendDiferencia" class="text-danger">Bs 0.00</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <button class="btn btn-primary" onclick="submitRendicion()"><i class="bi bi-file-earmark-check me-1"></i>Procesar Rendición</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cs-card">
+          <div class="cs-card-header"><span>Historial de Rendiciones</span></div>
+          <div class="cs-card-body p-0">
+            <div class="table-responsive-wrap">
+              <table class="cs-table">
+                <thead><tr><th>N° Rendición</th><th>Responsable</th><th>Pedidos</th><th>Esperado</th><th>Declarado</th><th>Diferencia</th><th>Estado</th></tr></thead>
+                <tbody id="tbl-rendiciones"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== CATEGORÍAS ==================== -->
+      <div id="page-categorias" class="page">
+        <div class="section-title"><i class="bi bi-tags-fill"></i>Categorías de Productos</div>
+        <div class="section-sub">Clasificación de platos, bebidas, postres y combos de la Kermesse.</div>
+
+        <div class="search-panel">
+          <input type="text" class="form-control" id="fCatBusca" placeholder="Buscar categoría..." oninput="renderCategoriasTable()">
+          <button class="btn btn-primary ms-auto" onclick="openCategoriaModal()"><i class="bi bi-plus-lg me-1"></i>Nueva Categoría</button>
+        </div>
+
+        <div class="cs-card">
+          <div class="cs-card-body p-0">
+            <div class="table-responsive-wrap">
+              <table class="cs-table">
+                <thead><tr><th>ID</th><th>Código</th><th>Nombre</th><th>Descripción</th><th>Acciones</th></tr></thead>
+                <tbody id="tbl-categorias"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== PRODUCTOS & MAESTROS ==================== -->
+      <div id="page-productos" class="page">
+        <div class="section-title"><i class="bi bi-egg-fried"></i>Catálogo de Productos y Platos</div>
+        <div class="section-sub">Administración de menú, precios y control de inventario de la Kermesse.</div>
+
+        <div class="search-panel">
+          <input type="text" class="form-control" id="fProdBusca" placeholder="Buscar por nombre o código..." oninput="renderProductosTable()">
+          <button class="btn btn-primary ms-auto" onclick="openProductoModal()"><i class="bi bi-plus-lg me-1"></i>Nuevo Producto / Plato</button>
+        </div>
+
+        <div class="cs-card">
+          <div class="cs-card-body p-0">
+            <div class="table-responsive-wrap">
+              <table class="cs-table">
+                <thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Precio Unit.</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <tbody id="tbl-productos"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== REPORTES & CIERRE DE KERMESSE ==================== -->
+      <div id="page-reportes" class="page">
+        <div class="section-title"><i class="bi bi-pie-chart-fill"></i>Reportes Financieros & Cierre Final</div>
+        <div class="section-sub">Resumen de ventas por categoría, pagos y cierre auditado del evento.</div>
+
+        <div class="cs-card mb-4">
+          <div class="cs-card-header bg-dark text-white"><span><i class="bi bi-lock-fill me-1"></i>Cierre Oficial de Kermesse</span></div>
+          <div class="cs-card-body text-center py-4">
+            <p class="text-muted mb-3">La función de Cierre consolida todas las ventas de platos, bebidas, donaciones y rinde cuentas con congelamiento de auditoría.</p>
+            <button class="btn btn-danger btn-lg px-4 fw-bold" onclick="showCierreKermesseModal()"><i class="bi bi-cash-register me-2"></i>Ejecutar Cierre Definitivo de Kermesse</button>
+          </div>
+        </div>
+
+        <div class="cs-card">
+          <div class="cs-card-header"><span>Historial de Cierres Auditados</span></div>
+          <div class="cs-card-body p-0">
+            <div class="table-responsive-wrap">
+              <table class="cs-table">
+                <thead><tr><th>ID</th><th>Fecha Cierre</th><th>Total Ventas</th><th>Total Ayudas</th><th>Total Recaudado</th><th>Efectivo</th><th>QR</th><th>Diferencias</th></tr></thead>
+                <tbody id="tbl-cierres"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL REGISTRAR PAGO ==================== -->
+<div class="modal fade" id="modalPago" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-cash me-2"></i>Registrar Pago a Pedido</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="pagoPedidoId">
+        <div class="mb-3">
+          <label class="form-label">Tipo de Pago</label>
+          <select class="form-select" id="pagoTipoSelect">
+            <option value="TPG000001">EFECTIVO</option>
+            <option value="TPG000002">QR / Transferencia</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Monto Acreditar (Bs)</label>
+          <input type="number" id="pagoMontoInput" class="form-control" placeholder="0.00">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Referencia N° / Transacción QR</label>
+          <input type="text" id="pagoRefInput" class="form-control" placeholder="N° Comprobante">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitPagoModal()">Guardar Pago</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL NUEVA/EDITAR CATEGORÍA ==================== -->
+<div class="modal fade" id="modalCategoria" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modalCategoriaTitle">Guardar Categoría</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="catId">
+        <div class="mb-3">
+          <label class="form-label">Nombre de la Categoría</label>
+          <input type="text" id="catNombre" class="form-control" placeholder="Ej: Platos Especiales">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Código Único</label>
+          <input type="text" id="catCodigo" class="form-control" placeholder="Ej: PLATO, BEBIDA, POSTRE">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Descripción</label>
+          <textarea id="catDesc" class="form-control" rows="2" placeholder="Descripción breve..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitCategoriaModal()">Guardar Categoría</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL NUEVO/EDITAR PRODUCTO ==================== -->
+<div class="modal fade" id="modalProducto" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modalProductoTitle">Guardar Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="prodId">
+        <div class="mb-3">
+          <label class="form-label">Categoría</label>
+          <select class="form-select" id="prodCatSelect"></select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Nombre del Producto / Plato</label>
+          <input type="text" id="prodNombre" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Precio Unitario (Bs)</label>
+          <input type="number" id="prodPrecio" class="form-control" step="0.50">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Stock Inicial</label>
+          <input type="number" id="prodStock" class="form-control" value="100">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitProductoModal()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL HISTORIAL PEDIDO ==================== -->
+<div class="modal fade" id="modalHistorial" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-clock-history me-2"></i>Historial & Auditoría de Pedido</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="historialTimeline"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL CIERRE KERMESSE ==================== -->
+<div class="modal fade" id="modalCierreKermesse" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-cash-register me-2"></i>Resumen de Cierre de Kermesse</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="border rounded p-3 mb-3 bg-light">
+          <h6 class="fw-bold mb-2">Desglose de Ventas por Categoría:</h6>
+          <div class="row" id="cierreDesgloseCats"></div>
+        </div>
+        <div class="border rounded p-3 mb-3">
+          <h6 class="fw-bold mb-2">Resumen Total de Recaudación:</h6>
+          <div class="row text-center fw-bold">
+            <div class="col-4">Ventas: <span id="cierreTotalVentas" class="d-block text-primary">Bs 0.00</span></div>
+            <div class="col-4">Ayudas Económicas: <span id="cierreTotalAyudas" class="d-block text-info">Bs 0.00</span></div>
+            <div class="col-4">TOTAL RECAUDADO: <span id="cierreTotalRecaudado" class="d-block text-success">Bs 0.00</span></div>
+          </div>
+        </div>
+        <div class="border rounded p-3 mb-3">
+          <h6 class="fw-bold mb-2">Desglose por Métodos de Pago:</h6>
+          <div class="row text-center fw-bold">
+            <div class="col-6">EFECTIVO: <span id="cierreTotalEfectivo" class="d-block text-dark">Bs 0.00</span></div>
+            <div class="col-6">QR / Transferencia: <span id="cierreTotalQr" class="d-block text-purple">Bs 0.00</span></div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Observaciones del Cierre</label>
+          <textarea id="cierreObs" class="form-control" rows="2" placeholder="Notas sobre el cierre de la Kermesse..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger fw-bold" onclick="submitCierreKermesse()"><i class="bi bi-lock-fill me-1"></i>Confirmar & Cerrar Kermesse</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL MAP PICKER ==================== -->
+<div class="modal fade" id="modalMapPicker" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content text-dark">
+      <div class="modal-header bg-dark text-white py-2">
+        <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-geo-alt-fill me-2 text-teal"></i>Seleccionar Ubicación Exacta en Mapa</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-3">
+        <div class="input-group mb-2">
+          <input type="text" id="mapSearchInput" class="form-control" placeholder="Buscar calle, zona o ciudad en Bolivia (Ej: Calama, Cochabamba)...">
+          <button class="btn btn-teal text-white" type="button" onclick="searchMapLocation()"><i class="bi bi-search"></i> Buscar</button>
+          <button class="btn btn-outline-teal" type="button" onclick="getMapCurrentGps()"><i class="bi bi-crosshair"></i> Mi GPS</button>
+        </div>
+        <div id="leafletMapContainer" style="height: 380px; width: 100%; border-radius: 8px; border: 1px solid var(--border);"></div>
+        <div class="d-flex justify-content-between align-items-center mt-2 bg-light p-2 rounded">
+          <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Haz clic en el mapa o arrastra el marcador para fijar las coordenadas.</small>
+          <span class="badge bg-dark text-mono" id="mapCoordsText">-17.38950, -66.15680</span>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="confirmMapPicker()"><i class="bi bi-check-lg me-1"></i>Confirmar Ubicación</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== LÓGICA JAVASCRIPT Y API ==================== -->
+<script>
+// ==================== CONFIGURACIÓN DE LA API GOOGLE APPS SCRIPT ====================
+const API_URL = "https://script.google.com/macros/s/AKfycbxOECjc47pnrrrMLU4uX83IsWN3kmrr2D85GHJ5cXO95oZoAaZPYWIvrXxaXCtSUQQfHQ/exec"; // Reemplazar con la URL desplegada
+
+let appState = {
+  usuarios: [], tiposPago: [], categorias: [], productos: [], clientes: [],
+  estadosPedido: [], metodosEntrega: [], pedidos: [], pedidoDetalles: [],
+  pagos: [], entregas: [], ayudasEconomicas: [], pedidoHistorial: [],
+  rendiciones: [], kermesseCierre: []
+};
+
+let currentUser = null;
+let posCart = [];
+
+// ==================== FUNCIONES API HELPER ====================
+async function callApi(action, data = {}, silent = false) {
+  if (!silent) showSpinner(true);
+  try {
+    data.action = action;
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(data)
+    });
+
+    const text = await response.text();
+    let result = {};
+    try {
+      result = JSON.parse(text);
+    } catch (jsonErr) {
+      if (!silent) showSpinner(false);
+      console.warn("Respuesta no válida del servidor Google Apps Script:", text);
+      showToast("Error en respuesta de Google Apps Script. Verifica que la Web App tenga acceso 'Cualquiera' (Anyone).", "warning");
+      return handleLocalSimulation(action, data);
+    }
+
+    if (!silent) showSpinner(false);
+    return result;
+  } catch (err) {
+    if (!silent) showSpinner(false);
+    console.error("Error al conectar con Google Apps Script:", err);
+    return handleLocalSimulation(action, data);
+  }
+}
+
+// Fallback local en memoria para pruebas directas offline
+function handleLocalSimulation(action, data) {
+  if (action === 'getAppState') {
+    return { success: true, data: appState };
+  }
+  if (action === 'login') {
+    const user = appState.usuarios.find(u => u.correo === data.correo) || { id: 'USR000001', nombre: 'Administrador Demo', correo: data.correo, rol: 'Administrador' };
+    return { success: true, data: user };
+  }
+  return { success: true, message: "Operación procesada en modo simulación local." };
+}
+
+function showSpinner(show) {
+  const sp = document.getElementById('loadingSpinner');
+  if (sp) show ? sp.classList.remove('hidden') : sp.classList.add('hidden');
+}
+
+function showToast(msg, type = 'success') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'teal' : type} border-0 show mb-2`;
+  toast.style.background = type === 'success' ? 'var(--cs-teal)' : type === 'danger' ? 'var(--cs-red)' : 'var(--cs-indigo)';
+  toast.innerHTML = `<div class="d-flex"><div class="toast-body fs-6">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.parentElement.parentElement.remove()"></button></div>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// ==================== DEMO & LOGIN ====================
+function selectDemoUser(role) {
+  document.querySelectorAll('.role-chip').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  const emails = {
+    admin: 'admin@kermesse.bo',
+    cocina: 'cocina@kermesse.bo',
+    repartidor: 'juan.perez@kermesse.bo',
+    caja: 'caja@kermesse.bo'
+  };
+  document.getElementById('loginEmail').value = emails[role];
+  document.getElementById('loginPass').value = 'demo1234';
+}
+
+function showAppScreen() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+
+  document.getElementById('userName').innerText = currentUser.nombre || 'Usuario';
+  document.getElementById('userRole').innerText = 'Rol: ' + (currentUser.rol || 'Usuario');
+  document.getElementById('topUserRole').innerText = currentUser.rol || 'Usuario';
+  document.getElementById('userAvatar').innerText = (currentUser.nombre || 'US').substring(0, 2).toUpperCase();
+}
+
+async function doLogin() {
+  const correo = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPass').value;
+
+  const res = await callApi('login', { correo, password });
+  if (res.success) {
+    currentUser = res.data;
+    try {
+      localStorage.setItem('kermesse_user', JSON.stringify(currentUser));
+    } catch(e) {}
+    showAppScreen();
+    await loadAppState();
+  } else {
+    showToast(res.error || "Credenciales incorrectas", "danger");
+  }
+}
+
+function doLogout() {
+  currentUser = null;
+  try {
+    localStorage.removeItem('kermesse_user');
+  } catch(e) {}
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'block';
+}
+
+// ==================== CARGAR ESTADO Y RENDERIZAR ====================
+async function loadAppState(silent = false) {
+  const res = await callApi('getAppState', {}, silent);
+  if (res.success && res.data) {
+    appState = res.data;
+    try {
+      localStorage.setItem('kermesse_app_state', JSON.stringify(appState));
+    } catch(e) {}
+    ensureMockData();
+    renderAllViews();
+  }
+}
+
+function ensureMockData() {
+  if (!appState.usuarios || appState.usuarios.length === 0) {
+    appState.usuarios = [
+      { id: 'USR000001', nombre: 'Administrador General', correo: 'admin@kermesse.bo', rol: 'Administrador' },
+      { id: 'USR000002', nombre: 'Cocina Kermesse', correo: 'cocina@kermesse.bo', rol: 'Cocina' },
+      { id: 'USR000003', nombre: 'Juan Pérez (Repartidor)', correo: 'juan.perez@kermesse.bo', rol: 'Repartidor' },
+      { id: 'USR000004', nombre: 'María López (Cajera)', correo: 'caja@kermesse.bo', rol: 'Cajero' }
+    ];
+  }
+  if (!appState.categorias || appState.categorias.length === 0) {
+    appState.categorias = [
+      { id: 'CAT000001', codigo: 'PLATO', nombre: 'Platos' },
+      { id: 'CAT000002', codigo: 'BEBIDA', nombre: 'Bebidas' },
+      { id: 'CAT000003', codigo: 'POSTRE', nombre: 'Postres' },
+      { id: 'CAT000004', codigo: 'COMBO', nombre: 'Combos' },
+      { id: 'CAT000005', codigo: 'OTRO', nombre: 'Otros' }
+    ];
+  }
+  if (!appState.productos || appState.productos.length === 0) {
+    appState.productos = [
+      { id: 'PRO000001', categoria_id: 'CAT000001', codigo: 'PLT-001', nombre: 'Pollo al horno', tipo: 'PLATO', precio: 35.00, stock: 100, activo: 'true' },
+      { id: 'PRO000002', categoria_id: 'CAT000001', codigo: 'PLT-002', nombre: 'Chicharrón de cerdo', tipo: 'PLATO', precio: 40.00, stock: 80, activo: 'true' },
+      { id: 'PRO000003', categoria_id: 'CAT000001', codigo: 'PLT-003', nombre: 'Hamburguesa completa', tipo: 'PLATO', precio: 20.00, stock: 150, activo: 'true' },
+      { id: 'PRO000004', categoria_id: 'CAT000002', codigo: 'BEB-001', nombre: 'Coca Cola 500ml', tipo: 'BEBIDA', precio: 8.00, stock: 200, activo: 'true' },
+      { id: 'PRO000005', categoria_id: 'CAT000002', codigo: 'BEB-002', nombre: 'Agua Mineral 500ml', tipo: 'BEBIDA', precio: 5.00, stock: 150, activo: 'true' },
+      { id: 'PRO000006', categoria_id: 'CAT000003', codigo: 'PST-001', nombre: 'Gelatina con crema', tipo: 'POSTRE', precio: 10.00, stock: 60, activo: 'true' },
+      { id: 'PRO000007', categoria_id: 'CAT000004', codigo: 'CMB-001', nombre: 'Combo Pollo + Gaseosa', tipo: 'COMBO', precio: 40.00, stock: 50, activo: 'true' }
+    ];
+  }
+  if (!appState.clientes || appState.clientes.length === 0) {
+    appState.clientes = [
+      { id: 'CLI000001', nombre: 'Público General / Venta Mostrador', telefono: '0' }
+    ];
+  }
+  if (!appState.estadosPedido || appState.estadosPedido.length === 0) {
+    appState.estadosPedido = [
+      { id: 'EST000001', codigo: 'RESERVADO', nombre: 'Reservado', color: 'badge-warn' },
+      { id: 'EST000002', codigo: 'CONFIRMADO', nombre: 'Confirmado', color: 'badge-info' },
+      { id: 'EST000003', codigo: 'EN_PREPARACION', nombre: 'En Preparación', color: 'badge-warn' },
+      { id: 'EST000004', codigo: 'LISTO_DESPACHO', nombre: 'Listo Despacho', color: 'badge-ok' },
+      { id: 'EST000005', codigo: 'ASIGNADO', nombre: 'Asignado', color: 'badge-info' },
+      { id: 'EST000006', codigo: 'EN_CAMINO', nombre: 'En Camino', color: 'badge-purple' },
+      { id: 'EST000007', codigo: 'RECOJO_SITIO', nombre: 'Recojo en Sitio', color: 'badge-neutral' },
+      { id: 'EST000008', codigo: 'PARA_LLEVAR', nombre: 'Para Llevar', color: 'badge-neutral' },
+      { id: 'EST000009', codigo: 'ENTREGADO', nombre: 'Entregado', color: 'badge-ok' },
+      { id: 'EST000010', codigo: 'CANCELADO', nombre: 'Cancelado', color: 'badge-bad' }
+    ];
+  }
+}
+
+function renderAllViews() {
+  renderDashboard();
+  renderPosView();
+  renderPedidosTable();
+  renderMisPedidosDriver();
+  renderEntregasAsignar();
+  renderAyudasTable();
+  renderRendicionesView();
+  renderCategoriasTable();
+  renderProductosTable();
+}
+
+// ==================== NAVEGACIÓN ENTRE VISTAS ====================
+function switchPage(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById('page-' + pageId);
+  if (target) target.classList.add('active');
+
+  document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+  const navItem = document.getElementById('nav-' + pageId);
+  if (navItem) navItem.classList.add('active');
+
+  if (pageId === 'dashboard') {
+    setTimeout(() => {
+      renderDashboardMap();
+    }, 150);
+  }
+}
+
+// ==================== VISTA: DASHBOARD ====================
+let chartCatInstance = null;
+let chartPagoInstance = null;
+
+function renderDashboard() {
+  const pedidos = appState.pedidos || [];
+  const pagos = (appState.pagos || []).filter(p => p.estado === 'REGISTRADO');
+  const ayudas = appState.ayudasEconomicas || [];
+  const detalles = appState.pedidoDetalles || [];
+  const prods = appState.productos || [];
+
+  let totalVentas = 0;
+  pedidos.forEach(p => {
+    if (p.estado_pedido_id !== 'EST000010') totalVentas += parseFloat(p.total || 0);
+  });
+
+  const totalAyudas = ayudas.reduce((sum, a) => sum + parseFloat(a.monto || 0), 0);
+  const totalRecaudado = totalVentas + totalAyudas;
+
+  document.getElementById('stat-total-ventas').innerText = `Bs ${totalVentas.toFixed(2)}`;
+  document.getElementById('stat-ayudas').innerText = `Bs ${totalAyudas.toFixed(2)}`;
+  document.getElementById('stat-total-recaudado').innerText = `Bs ${totalRecaudado.toFixed(2)}`;
+  document.getElementById('stat-pedidos-count').innerText = pedidos.length;
+
+  // Render Mapa Interactivo de Entregas
+  renderDashboardMap();
+
+  // Render Tabla Últimos Pedidos
+  const tbody = document.getElementById('tbl-dash-pedidos');
+  tbody.innerHTML = '';
+  pedidos.slice(-5).reverse().forEach(p => {
+    const cli = (appState.clientes.find(c => c.id === p.cliente_id) || {}).nombre || p.cliente_nombre || 'Mostrador';
+    const estObj = appState.estadosPedido.find(e => e.id === p.estado_pedido_id) || { nombre: p.estado_pedido_id, color: 'badge-neutral' };
+    const pgoStatus = getOrderPaymentStatus(p);
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="fw-bold text-primary">${p.numero}</td>
+        <td>${cli}</td>
+        <td class="fw-bold">Bs ${parseFloat(p.total).toFixed(2)}</td>
+        <td><span class="badge-pill ${estObj.color}">${estObj.nombre}</span></td>
+        <td><span class="badge-pill ${pgoStatus.color}">${pgoStatus.status}</span></td>
+        <td><span class="badge-pill badge-neutral">${p.metodo_entrega_id || 'RECOJO_SITIO'}</span></td>
+      </tr>
+    `;
+  });
+
+  // Render Gráficos Chart.js
+  renderDashboardCharts(detalles, prods, pagos, ayudas);
+}
+
+// ==================== MAPA EN TIEMPO REAL DEL DASHBOARD ====================
+let dashMapInstance = null;
+
+function renderDashboardMap() {
+  const container = document.getElementById('dashMapEntregas');
+  if (!container || typeof L === 'undefined') return;
+
+  if (dashMapInstance) {
+    try { dashMapInstance.remove(); } catch(e) {}
+    dashMapInstance = null;
+  }
+
+  const pedidosDelivery = (appState.pedidos || []).filter(p => p.estado_pedido_id !== 'EST000010' && p.estado_pedido_id !== 'EST000009');
+  
+  const mapBadge = document.getElementById('dashMapDeliveryCount');
+  if (mapBadge) mapBadge.innerText = `${pedidosDelivery.length} Entregas Activas`;
+
+  let centerLat = -17.3895;
+  let centerLng = -66.1568;
+
+  const firstWithCoords = pedidosDelivery.find(p => p.latitud && p.longitud);
+  if (firstWithCoords) {
+    centerLat = parseFloat(firstWithCoords.latitud);
+    centerLng = parseFloat(firstWithCoords.longitud);
+  }
+
+  dashMapInstance = L.map('dashMapEntregas').setView([centerLat, centerLng], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(dashMapInstance);
+
+  const markersGroup = L.featureGroup();
+
+  pedidosDelivery.forEach(p => {
+    const cli = (appState.clientes || []).find(c => c.id === p.cliente_id) || {};
+    const cliName = p.cliente_nombre || cli.nombre || 'Cliente';
+    const cliTel = p.cliente_telefono || cli.telefono || '0';
+    const dir = p.direccion_entrega || cli.direccion || 'Sin dirección registrada';
+
+    let lat = parseFloat(p.latitud || cli.latitud);
+    let lng = parseFloat(p.longitud || cli.longitud);
+
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    const estObj = appState.estadosPedido.find(e => e.id === p.estado_pedido_id) || { nombre: p.estado_pedido_id, color: 'badge-neutral' };
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+    const popupHtml = `
+      <div style="font-family: Inter, sans-serif; width: 210px;">
+        <div style="font-weight: 800; color: #115959; font-size: 0.95rem; margin-bottom: 2px;">${p.numero}</div>
+        <div style="font-weight: 600;">${cliName}</div>
+        <div style="font-size: 0.8rem; color: #555; margin-bottom: 4px;"><i class="bi bi-geo-alt"></i> ${dir}</div>
+        <div style="font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">Total: Bs ${parseFloat(p.total).toFixed(2)}</div>
+        <div style="margin-bottom: 8px;"><span class="badge-pill ${estObj.color}" style="font-size: 0.75rem;">${estObj.nombre}</span></div>
+        <div style="display: flex; gap: 4px;">
+          <a href="${mapsUrl}" target="_blank" class="btn btn-xs btn-primary text-white flex-fill text-center" style="font-size:0.75rem; text-decoration:none;">🗺️ Maps</a>
+          <button onclick="openWhatsApp('${cliTel}', '${cliName}', '${p.numero}', ${p.total}, '${dir}')" class="btn btn-xs btn-success text-white flex-fill" style="font-size:0.75rem;">💬 WhatsApp</button>
+        </div>
+      </div>
+    `;
+
+    const marker = L.marker([lat, lng]).bindPopup(popupHtml);
+    markersGroup.addLayer(marker);
+  });
+
+  if (markersGroup.getLayers().length > 0) {
+    markersGroup.addTo(dashMapInstance);
+    dashMapInstance.fitBounds(markersGroup.getBounds().pad(0.15));
+  }
+
+  setTimeout(() => {
+    if (dashMapInstance) dashMapInstance.invalidateSize();
+  }, 300);
+}
+
+// ==================== FUNCIONES DE MAP PICKER (SELECTOR DE COORDENADAS) ====================
+let mapPickerInstance = null;
+let mapPickerMarker = null;
+let mapPickerTarget = 'pos';
+let currentSelectedCoords = { lat: -17.3895, lng: -66.1568 };
+
+function openMapPicker(target = 'pos', initialLat = null, initialLng = null) {
+  mapPickerTarget = target;
+  
+  if (initialLat && initialLng && !isNaN(initialLat) && !isNaN(initialLng)) {
+    currentSelectedCoords = { lat: parseFloat(initialLat), lng: parseFloat(initialLng) };
+  } else if (target === 'pos') {
+    const latVal = parseFloat(document.getElementById('posLat').value);
+    const lngVal = parseFloat(document.getElementById('posLng').value);
+    if (!isNaN(latVal) && !isNaN(lngVal)) {
+      currentSelectedCoords = { lat: latVal, lng: lngVal };
+    } else {
+      currentSelectedCoords = { lat: -17.3895, lng: -66.1568 };
+    }
+  }
+
+  const modalEl = document.getElementById('modalMapPicker');
+  const modal = new bootstrap.Modal(modalEl);
+  modal.show();
+
+  modalEl.addEventListener('shown.bs.modal', function onShown() {
+    modalEl.removeEventListener('shown.bs.modal', onShown);
+    initLeafletPickerMap();
+  });
+}
+
+function initLeafletPickerMap() {
+  const container = document.getElementById('leafletMapContainer');
+  if (!container || typeof L === 'undefined') return;
+
+  if (mapPickerInstance) {
+    mapPickerInstance.remove();
+    mapPickerInstance = null;
+  }
+
+  mapPickerInstance = L.map('leafletMapContainer').setView([currentSelectedCoords.lat, currentSelectedCoords.lng], 15);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(mapPickerInstance);
+
+  mapPickerMarker = L.marker([currentSelectedCoords.lat, currentSelectedCoords.lng], { draggable: true }).addTo(mapPickerInstance);
+
+  updateMapCoordsBadge(currentSelectedCoords.lat, currentSelectedCoords.lng);
+
+  mapPickerInstance.on('click', function(e) {
+    currentSelectedCoords = { lat: e.latlng.lat, lng: e.latlng.lng };
+    mapPickerMarker.setLatLng(e.latlng);
+    updateMapCoordsBadge(e.latlng.lat, e.latlng.lng);
+  });
+
+  mapPickerMarker.on('dragend', function(e) {
+    const position = mapPickerMarker.getLatLng();
+    currentSelectedCoords = { lat: position.lat, lng: position.lng };
+    updateMapCoordsBadge(position.lat, position.lng);
+  });
+
+  setTimeout(() => mapPickerInstance.invalidateSize(), 300);
+}
+
+function updateMapCoordsBadge(lat, lng) {
+  const badge = document.getElementById('mapCoordsText');
+  if (badge) badge.innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+function getMapCurrentGps() {
+  if (!navigator.geolocation) {
+    showToast("La geolocalización no está soportada por tu navegador.", "warning");
+    return;
+  }
+  showToast("Obteniendo tu ubicación por GPS...", "info");
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    currentSelectedCoords = { lat, lng };
+    if (mapPickerInstance) {
+      mapPickerInstance.setView([lat, lng], 16);
+      mapPickerMarker.setLatLng([lat, lng]);
+    }
+    updateMapCoordsBadge(lat, lng);
+    showToast("¡Ubicación GPS obtenida correctamente!");
+  }, err => {
+    showToast("No se pudo obtener la ubicación GPS: " + err.message, "danger");
+  });
+}
+
+async function searchMapLocation() {
+  const query = document.getElementById('mapSearchInput').value.trim();
+  if (!query) return;
+
+  showToast("Buscando dirección...", "info");
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Bolivia')}`);
+    const data = await res.json();
+    if (data && data.length > 0) {
+      const lat = parseFloat(data[0].lat);
+      const lng = parseFloat(data[0].lon);
+      currentSelectedCoords = { lat, lng };
+      if (mapPickerInstance) {
+        mapPickerInstance.setView([lat, lng], 16);
+        mapPickerMarker.setLatLng([lat, lng]);
+      }
+      updateMapCoordsBadge(lat, lng);
+    } else {
+      showToast("No se encontraron resultados para la búsqueda.", "warning");
+    }
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function confirmMapPicker() {
+  const lat = currentSelectedCoords.lat.toFixed(6);
+  const lng = currentSelectedCoords.lng.toFixed(6);
+
+  if (mapPickerTarget === 'pos') {
+    document.getElementById('posLat').value = lat;
+    document.getElementById('posLng').value = lng;
+    document.getElementById('posMapStatusText').innerHTML = `<i class="bi bi-geo-alt-fill text-success"></i> Ubicación: ${lat}, ${lng}`;
+  }
+
+  bootstrap.Modal.getInstance(document.getElementById('modalMapPicker')).hide();
+  showToast("Ubicación geográfica adjuntada correctamente.");
+}
+
+// ==================== HELPER WHATSAPP CON FORMATO +591 BOLIVIA ====================
+function openWhatsApp(telefono, clienteNombre, numPedido, total, direccion) {
+  let tel = (telefono || '').toString().trim();
+  if (!tel || tel === '0') {
+    showToast("El pedido no tiene un número de teléfono válido diferente de 0 registrado.", "warning");
+    return;
+  }
+  tel = tel.replace(/[^0-9]/g, '');
+  if (!tel) {
+    showToast("Número de teléfono no válido.", "warning");
+    return;
+  }
+  if (!tel.startsWith('591')) {
+    tel = '591' + tel;
+  }
+  const texto = `Hola ${clienteNombre}! Te hablo de la Kermesse sobre tu pedido #${numPedido}.\nTotal a pagar: Bs ${parseFloat(total).toFixed(2)}.\n${direccion ? 'Dirección de entrega: ' + direccion : ''}`;
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`, '_blank');
+}
+
+function renderDashboardCharts(detalles, prods, pagos, ayudas) {
+  // Gráfico Categorías
+  const catTotals = { Platos: 0, Bebidas: 0, Postres: 0, Combos: 0, Otros: 0 };
+  detalles.forEach(d => {
+    const prod = prods.find(p => p.id === d.producto_id);
+    const sub = parseFloat(d.subtotal || 0);
+    if (prod) {
+      if (prod.tipo === 'PLATO') catTotals.Platos += sub;
+      else if (prod.tipo === 'BEBIDA') catTotals.Bebidas += sub;
+      else if (prod.tipo === 'POSTRE') catTotals.Postres += sub;
+      else if (prod.tipo === 'COMBO') catTotals.Combos += sub;
+      else catTotals.Otros += sub;
+    }
+  });
+
+  const ctxCat = document.getElementById('chartCategorias').getContext('2d');
+  if (chartCatInstance) chartCatInstance.destroy();
+  chartCatInstance = new Chart(ctxCat, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(catTotals),
+      datasets: [{
+        label: 'Recaudación (Bs)',
+        data: Object.values(catTotals),
+        backgroundColor: ['#115959', '#1F7354', '#D97706', '#7C3AED', '#6B7C80']
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+
+  // Gráfico Formas de Pago
+  let totalEfectivo = 0;
+  let totalQR = 0;
+
+  pagos.forEach(p => {
+    if (p.tipo_pago_id === 'TPG000001') totalEfectivo += parseFloat(p.monto || 0);
+    else totalQR += parseFloat(p.monto || 0);
+  });
+  ayudas.forEach(a => {
+    if (a.tipo_pago_id === 'TPG000001') totalEfectivo += parseFloat(a.monto || 0);
+    else totalQR += parseFloat(a.monto || 0);
+  });
+
+  const ctxPago = document.getElementById('chartMetodosPago').getContext('2d');
+  if (chartPagoInstance) chartPagoInstance.destroy();
+  chartPagoInstance = new Chart(ctxPago, {
+    type: 'doughnut',
+    data: {
+      labels: ['EFECTIVO', 'QR'],
+      datasets: [{
+        data: [totalEfectivo, totalQR],
+        backgroundColor: ['#115959', '#7C3AED']
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+}
+
+// ==================== CALCULAR ESTADO PAGO DEL PEDIDO ====================
+function getOrderPaymentStatus(pedido) {
+  const total = parseFloat(pedido.total || 0);
+  const pagos = (appState.pagos || []).filter(p => p.pedido_id === pedido.id && p.estado === 'REGISTRADO');
+  const pagadoSum = pagos.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0);
+
+  if (pagadoSum <= 0) return { status: 'PENDIENTE', color: 'badge-bad' };
+  if (pagadoSum < total) return { status: 'PAGO PARCIAL', color: 'badge-warn' };
+  return { status: 'PAGADO', color: 'badge-ok' };
+}
+
+// ==================== VISTA: NUEVO PEDIDO (POS) ====================
+function renderPosView() {
+  // Cargar Clientes (si existe selector)
+  const cliSelect = document.getElementById('posClienteSelect');
+  if (cliSelect) {
+    cliSelect.innerHTML = '';
+    (appState.clientes || []).forEach(c => {
+      cliSelect.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+    });
+  }
+
+  // Cargar Categorías Filtro
+  const catSelect = document.getElementById('fPosCat');
+  if (catSelect) {
+    catSelect.innerHTML = '<option value="">Todas las categorías</option>';
+    (appState.categorias || []).forEach(c => {
+      catSelect.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+    });
+  }
+
+  renderPosProducts();
+}
+
+function renderPosProducts() {
+  const busca = document.getElementById('fPosBusca').value.toLowerCase();
+  const catId = document.getElementById('fPosCat').value;
+  const container = document.getElementById('posProductContainer');
+  container.innerHTML = '';
+
+  const prods = appState.productos.filter(p => {
+    const matchName = p.nombre.toLowerCase().includes(busca) || p.codigo.toLowerCase().includes(busca);
+    const matchCat = !catId || p.categoria_id === catId;
+    return matchName && matchCat && p.activo === 'true';
+  });
+
+  prods.forEach(p => {
+    container.innerHTML += `
+      <div class="product-pick" onclick="addPosCart('${p.id}')">
+        <div class="pp-icon"><i class="bi bi-egg-fried"></i></div>
+        <div class="pp-info">
+          <div class="pp-name">${p.nombre}</div>
+          <div class="pp-meta">${p.codigo} · ${p.tipo}</div>
+        </div>
+        <div class="pp-price">Bs ${parseFloat(p.precio).toFixed(2)}</div>
+      </div>
+    `;
+  });
+}
+
+function addPosCart(prodId) {
+  const prod = appState.productos.find(p => p.id === prodId);
+  if (!prod) return;
+
+  const item = posCart.find(c => c.producto_id === prodId);
+  if (item) {
+    item.cantidad++;
+  } else {
+    posCart.push({ producto_id: prodId, nombre: prod.nombre, precio: parseFloat(prod.precio), cantidad: 1 });
+  }
+  renderPosCartRows();
+}
+
+function renderPosCartRows() {
+  const container = document.getElementById('posCartRows');
+  container.innerHTML = '';
+
+  posCart.forEach((item, index) => {
+    container.innerHTML += `
+      <div class="cart-row">
+        <div style="flex:1" class="fw-bold">${item.nombre}</div>
+        <input type="number" class="form-control form-control-sm cart-qty" value="${item.cantidad}" min="1" onchange="updateCartQty(${index}, this.value)">
+        <div class="fw-bold" style="width:70px;text-align:right">Bs ${(item.cantidad * item.precio).toFixed(2)}</div>
+        <button class="cart-remove" onclick="removeCartItem(${index})"><i class="bi bi-x-circle-fill"></i></button>
+      </div>
+    `;
+  });
+  calculatePosTotals();
+}
+
+function updateCartQty(index, val) {
+  const qty = parseInt(val || 1);
+  if (qty > 0) posCart[index].cantidad = qty;
+  renderPosCartRows();
+}
+
+function removeCartItem(index) {
+  posCart.splice(index, 1);
+  renderPosCartRows();
+}
+
+function calculatePosTotals() {
+  const subtotal = posCart.reduce((sum, item) => sum + (item.cantidad * item.precio), 0);
+  const desc = parseFloat(document.getElementById('posDescuento').value || 0);
+  const total = Math.max(0, subtotal - desc);
+
+  document.getElementById('posSubtotal').innerText = `Bs ${subtotal.toFixed(2)}`;
+  document.getElementById('posTotal').innerText = `Bs ${total.toFixed(2)}`;
+}
+
+function togglePosDeliveryFields() {
+  const val = document.getElementById('posEntregaSelect').value;
+  const box = document.getElementById('posDeliveryBox');
+  if (val === 'MET000002' || val === 'MET000003') { // PARA_LLEVAR o DOMICILIO
+    box.classList.remove('hidden');
+  } else {
+    box.classList.add('hidden');
+  }
+}
+
+async function submitPosPedido() {
+  if (posCart.length === 0) {
+    showToast("Agrega al menos un producto a la canasta.", "danger");
+    return;
+  }
+
+  const clienteNombre = (document.getElementById('posClienteNombre').value || 'Público General').trim();
+  const clienteTel = (document.getElementById('posClienteTel').value || '0').trim();
+  const entregaId = document.getElementById('posEntregaSelect').value;
+  const direccion = document.getElementById('posDireccion').value.trim();
+  const lat = document.getElementById('posLat').value;
+  const lng = document.getElementById('posLng').value;
+
+  // Validaciones obligatorias si es PARA_LLEVAR o DOMICILIO
+  if (entregaId === 'MET000002' || entregaId === 'MET000003') {
+    if (!clienteTel || clienteTel === '0') {
+      showToast("Para pedidos Para Llevar / Delivery, el número de teléfono debe ser distinto de 0.", "danger");
+      document.getElementById('posClienteTel').focus();
+      return;
+    }
+    if (!direccion) {
+      showToast("Para pedidos Para Llevar / Delivery, la dirección de entrega es obligatoria.", "danger");
+      document.getElementById('posDireccion').focus();
+      return;
+    }
+  }
+
+  const desc = parseFloat(document.getElementById('posDescuento').value || 0);
+  const pagoMonto = parseFloat(document.getElementById('posPagoMonto').value || 0);
+  const pagoTipo = document.getElementById('posPagoTipo').value;
+  const pagoRef = document.getElementById('posPagoRef').value;
+
+  const payload = {
+    cliente_nombre: clienteNombre,
+    cliente_telefono: clienteTel,
+    metodo_entrega_id: entregaId,
+    direccion_entrega: direccion,
+    latitud: lat,
+    longitud: lng,
+    estado_pedido_id: 'EST000001', // RESERVADO
+    descuento: desc,
+    usuario_registro_id: currentUser.id,
+    items: posCart.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio }))
+  };
+
+  if (pagoMonto > 0) {
+    payload.pago_inicial = { tipo_pago_id: pagoTipo, monto: pagoMonto, referencia: pagoRef };
+  }
+
+  const res = await callApi('savePedido', payload);
+  if (res.success) {
+    showToast(res.message || "Pedido guardado con éxito.");
+    posCart = [];
+    document.getElementById('posClienteNombre').value = "Público General";
+    document.getElementById('posClienteTel').value = "0";
+    document.getElementById('posDireccion').value = "";
+    document.getElementById('posLat').value = "";
+    document.getElementById('posLng').value = "";
+    document.getElementById('posMapStatusText').innerHTML = `<i class="bi bi-geo-alt"></i> Sin ubicación en mapa`;
+    document.getElementById('posDescuento').value = 0;
+    document.getElementById('posPagoMonto').value = '';
+    document.getElementById('posPagoRef').value = '';
+    await loadAppState();
+    switchPage('pedidos');
+  } else {
+    showToast(res.error || "Error al guardar pedido", "danger");
+  }
+}
+
+// ==================== VISTA: ADMINISTRACIÓN DE PEDIDOS ====================
+function renderPedidosTable() {
+  const busca = document.getElementById('fPedBusca').value.toLowerCase();
+  const fEstado = document.getElementById('fPedEstado').value;
+  const fPago = document.getElementById('fPedPago').value;
+
+  const selectEstado = document.getElementById('fPedEstado');
+  if (selectEstado.children.length <= 1) {
+    selectEstado.innerHTML = '<option value="">Todos los estados</option>';
+    appState.estadosPedido.forEach(e => {
+      selectEstado.innerHTML += `<option value="${e.id}">${e.nombre}</option>`;
+    });
+  }
+
+  const tbody = document.getElementById('tbl-pedidos');
+  tbody.innerHTML = '';
+
+  const list = appState.pedidos.filter(p => {
+    const cliObj = appState.clientes.find(c => c.id === p.cliente_id) || {};
+    const cli = p.cliente_nombre || cliObj.nombre || '';
+    const matchText = p.numero.toLowerCase().includes(busca) || cli.toLowerCase().includes(busca);
+    const matchEstado = !fEstado || p.estado_pedido_id === fEstado;
+    const pgoStatus = getOrderPaymentStatus(p);
+    const matchPago = !fPago || pgoStatus.status === fPago;
+    return matchText && matchEstado && matchPago;
+  });
+
+  list.reverse().forEach(p => {
+    const cliObj = appState.clientes.find(c => c.id === p.cliente_id) || {};
+    const cli = p.cliente_nombre || cliObj.nombre || 'Mostrador';
+    const cliTel = p.cliente_telefono || cliObj.telefono || '0';
+    const dir = p.direccion_entrega || cliObj.direccion || '';
+
+    const estObj = appState.estadosPedido.find(e => e.id === p.estado_pedido_id) || { nombre: p.estado_pedido_id, color: 'badge-neutral' };
+    const pgoStatus = getOrderPaymentStatus(p);
+
+    const lat = p.latitud || cliObj.latitud;
+    const lng = p.longitud || cliObj.longitud;
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat && lng ? lat + ',' + lng : encodeURIComponent(dir || cli.nombre || '')}`;
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="fw-bold text-primary">${p.numero}</td>
+        <td>${p.fecha_pedido || ''}</td>
+        <td>
+          <div class="fw-bold">${cli}</div>
+          <small class="text-muted"><i class="bi bi-telephone"></i> ${cliTel} ${dir ? ' · ' + dir : ''}</small>
+        </td>
+        <td><span class="badge-pill badge-neutral">${p.metodo_entrega_id}</span></td>
+        <td class="fw-bold">Bs ${parseFloat(p.total).toFixed(2)}</td>
+        <td><span class="badge-pill ${estObj.color}">${estObj.nombre}</span></td>
+        <td><span class="badge-pill ${pgoStatus.color}">${pgoStatus.status}</span></td>
+        <td>
+          <a href="${mapsUrl}" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver Ruta en Google Maps"><i class="bi bi-map-fill"></i></a>
+          <button class="btn btn-sm btn-outline-success" onclick="openWhatsApp('${cliTel}', '${cli}', '${p.numero}', ${p.total}, '${dir}')" title="WhatsApp"><i class="bi bi-whatsapp"></i></button>
+          <button class="btn btn-sm btn-outline-teal" onclick="openModalPago('${p.id}')" title="Registrar Pago"><i class="bi bi-cash"></i></button>
+          <button class="btn btn-sm btn-outline-teal" onclick="openHistorialModal('${p.id}')" title="Historial"><i class="bi bi-clock-history"></i></button>
+          <select class="form-select form-select-sm d-inline-block style-inline" style="width:130px" onchange="cambiarEstadoPedidoSelect('${p.id}', this.value)">
+            ${appState.estadosPedido.map(e => `<option value="${e.id}" ${e.id === p.estado_pedido_id ? 'selected' : ''}>${e.nombre}</option>`).join('')}
+          </select>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function cambiarEstadoPedidoSelect(pedidoId, estadoNuevoId) {
+  const res = await callApi('cambiarEstadoPedido', { pedido_id: pedidoId, estado_nuevo_id: estadoNuevoId, usuario_id: currentUser.id });
+  if (res.success) {
+    showToast("Estado actualizado correctamente.");
+    await loadAppState();
+  }
+}
+
+function openModalPago(pedidoId) {
+  document.getElementById('pagoPedidoId').value = pedidoId;
+  document.getElementById('pagoMontoInput').value = '';
+  document.getElementById('pagoRefInput').value = '';
+  new bootstrap.Modal(document.getElementById('modalPago')).show();
+}
+
+async function submitPagoModal() {
+  const pedidoId = document.getElementById('pagoPedidoId').value;
+  const tipoId = document.getElementById('pagoTipoSelect').value;
+  const monto = parseFloat(document.getElementById('pagoMontoInput').value || 0);
+  const ref = document.getElementById('pagoRefInput').value;
+
+  const res = await callApi('savePago', { pedido_id: pedidoId, tipo_pago_id: tipoId, monto, referencia: ref, usuario_id: currentUser.id });
+  if (res.success) {
+    bootstrap.Modal.getInstance(document.getElementById('modalPago')).hide();
+    showToast("Pago registrado correctamente.");
+    await loadAppState();
+  } else {
+    showToast(res.error || "Error al registrar pago", "danger");
+  }
+}
+
+// ==================== VISTA: MIS PEDIDOS (REPARTIDOR) ====================
+function renderMisPedidosDriver() {
+  const container = document.getElementById('driverOrdersContainer');
+  container.innerHTML = '';
+
+  const misEntregas = appState.entregas.filter(e => e.responsable_id === currentUser.id);
+  const pedidoIds = misEntregas.map(e => e.pedido_id);
+  const misPedidos = appState.pedidos.filter(p => pedidoIds.includes(p.id));
+
+  let asignados = 0, camino = 0, entregados = 0;
+
+  misPedidos.forEach(p => {
+    const est = p.estado_pedido_id;
+    if (est === 'EST000005') asignados++;
+    else if (est === 'EST000006') camino++;
+    else if (est === 'EST000009') entregados++;
+
+    const cliObj = (appState.clientes.find(c => c.id === p.cliente_id) || {});
+    const cliNombre = p.cliente_nombre || cliObj.nombre || 'Cliente';
+    const cliTel = p.cliente_telefono || cliObj.telefono || '0';
+    const dir = p.direccion_entrega || cliObj.direccion || 'Sin dirección especificada';
+
+    const pgoStatus = getOrderPaymentStatus(p);
+
+    const lat = p.latitud || cliObj.latitud;
+    const lng = p.longitud || cliObj.longitud;
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat && lng ? lat + ',' + lng : encodeURIComponent(dir)}`;
+
+    container.innerHTML += `
+      <div class="driver-order-card shadow-sm p-3 mb-3 bg-white rounded border">
+        <div class="doc-header d-flex justify-content-between align-items-center mb-2">
+          <div><span class="doc-title fw-bold text-teal fs-5">${p.numero}</span> · <span class="fw-bold">${cliNombre}</span></div>
+          <div class="doc-total text-dark fw-bold fs-5">Bs ${parseFloat(p.total).toFixed(2)}</div>
+        </div>
+        
+        <div class="mb-2 text-muted" style="font-size:.9rem">
+          <div><i class="bi bi-telephone-fill me-1 text-teal"></i><strong>Teléfono:</strong> ${cliTel}</div>
+          <div><i class="bi bi-geo-alt-fill me-1 text-danger"></i><strong>Dirección:</strong> ${dir}</div>
+          <div><i class="bi bi-credit-card me-1"></i><strong>Estado Pago:</strong> <span class="badge-pill ${pgoStatus.color}">${pgoStatus.status}</span></div>
+        </div>
+
+        <div class="d-flex gap-2 my-2">
+          <a href="${mapsUrl}" target="_blank" class="btn btn-sm btn-outline-teal flex-fill">
+            <i class="bi bi-map-fill me-1"></i>Ruta Maps
+          </a>
+          <button type="button" class="btn btn-sm btn-outline-success flex-fill" onclick="openWhatsApp('${cliTel}', '${cliNombre}', '${p.numero}', ${p.total}, '${dir}')">
+            <i class="bi bi-whatsapp me-1"></i>WhatsApp
+          </button>
+        </div>
+
+        <div class="d-flex gap-2 mt-2">
+          ${est === 'EST000005' ? `<button class="btn btn-primary btn-sm flex-fill fw-bold" onclick="driverAction('${p.id}', 'iniciarEntrega')"><i class="bi bi-play-circle me-1"></i>INICIAR ENTREGA</button>` : ''}
+          ${est === 'EST000006' ? `<button class="btn btn-success btn-sm flex-fill fw-bold" onclick="driverAction('${p.id}', 'confirmarEntrega')"><i class="bi bi-check-circle me-1"></i>CONFIRMAR ENTREGADO</button>` : ''}
+          ${est === 'EST000009' ? `<span class="badge-pill badge-ok py-2 px-3 flex-fill text-center"><i class="bi bi-check-all me-1"></i>PEDIDO ENTREGADO</span>` : ''}
+        </div>
+      </div>
+    `;
+  });
+
+  document.getElementById('driverAsignadosCount').innerText = asignados;
+  document.getElementById('driverCaminoCount').innerText = camino;
+  document.getElementById('driverEntregadosCount').innerText = entregados;
+}
+
+async function driverAction(pedidoId, action) {
+  const res = await callApi(action, { pedido_id: pedidoId, usuario_id: currentUser.id });
+  if (res.success) {
+    showToast(res.message);
+    await loadAppState();
+  }
+}
+
+// ==================== VISTA: ASIGNACIÓN DE ENTREGAS ====================
+function renderEntregasAsignar() {
+  const respSelect = document.getElementById('entregasResponsableSelect');
+  respSelect.innerHTML = '';
+  appState.usuarios.filter(u => u.rol === 'Repartidor' || u.rol === 'Administrador').forEach(u => {
+    respSelect.innerHTML += `<option value="${u.id}">${u.nombre} (${u.rol})</option>`;
+  });
+
+  const tbody = document.getElementById('tbl-asignar-pedidos');
+  tbody.innerHTML = '';
+
+  const listos = appState.pedidos.filter(p => p.estado_pedido_id === 'EST000004' || p.estado_pedido_id === 'EST000001' || p.estado_pedido_id === 'EST000002');
+  listos.forEach(p => {
+    const cli = (appState.clientes.find(c => c.id === p.cliente_id) || {}).nombre || 'Mostrador';
+    tbody.innerHTML += `
+      <tr>
+        <td><input type="checkbox" class="chk-asignar" value="${p.id}"></td>
+        <td class="fw-bold text-primary">${p.numero}</td>
+        <td>${cli}</td>
+        <td>${p.metodo_entrega_id}</td>
+        <td class="fw-bold">Bs ${parseFloat(p.total).toFixed(2)}</td>
+        <td><span class="badge-pill badge-info">LISTO PARA ASIGNAR</span></td>
+      </tr>
+    `;
+  });
+}
+
+function toggleSelectAllAsignar(chk) {
+  document.querySelectorAll('.chk-asignar').forEach(c => c.checked = chk.checked);
+}
+
+async function submitAsignacion() {
+  const selected = Array.from(document.querySelectorAll('.chk-asignar:checked')).map(c => c.value);
+  const respId = document.getElementById('entregasResponsableSelect').value;
+
+  if (selected.length === 0) {
+    showToast("Selecciona al menos un pedido para asignar.", "danger");
+    return;
+  }
+
+  const res = await callApi('asignarEntrega', { pedido_ids: selected, responsable_id: respId, usuario_id: currentUser.id });
+  if (res.success) {
+    showToast(res.message);
+    await loadAppState();
+  }
+}
+
+// ==================== VISTA: AYUDAS ECONÓMICAS ====================
+function renderAyudasTable() {
+  const tbody = document.getElementById('tbl-ayudas');
+  tbody.innerHTML = '';
+  appState.ayudasEconomicas.slice().reverse().forEach(a => {
+    tbody.innerHTML += `
+      <tr>
+        <td class="text-mono">${a.id}</td>
+        <td>${a.fecha || ''}</td>
+        <td class="fw-bold">${a.persona}</td>
+        <td class="fw-bold text-success">Bs ${parseFloat(a.monto).toFixed(2)}</td>
+        <td><span class="badge-pill badge-neutral">${a.tipo_pago_id}</span></td>
+        <td>${a.referencia || '-'}</td>
+      </tr>
+    `;
+  });
+}
+
+async function submitAyuda() {
+  const persona = document.getElementById('ayuPersona').value;
+  const monto = parseFloat(document.getElementById('ayuMonto').value || 0);
+  const tipoId = document.getElementById('ayuTipoPago').value;
+  const ref = document.getElementById('ayuRef').value;
+
+  if (!persona || monto <= 0) {
+    showToast("Ingresa el donante y un monto mayor a cero.", "danger");
+    return;
+  }
+
+  const res = await callApi('saveAyudaEconomica', { persona, monto, tipo_pago_id: tipoId, referencia: ref, usuario_id: currentUser.id });
+  if (res.success) {
+    showToast(res.message);
+    document.getElementById('ayuPersona').value = '';
+    document.getElementById('ayuMonto').value = '';
+    document.getElementById('ayuRef').value = '';
+    await loadAppState();
+  }
+}
+
+// ==================== VISTA: RENDICIÓN DE DINERO ====================
+function renderRendicionesView() {
+  const respSelect = document.getElementById('rendResponsableSelect');
+  respSelect.innerHTML = '<option value="">Selecciona un responsable</option>';
+  appState.usuarios.forEach(u => {
+    respSelect.innerHTML += `<option value="${u.id}">${u.nombre}</option>`;
+  });
+
+  const tbody = document.getElementById('tbl-rendiciones');
+  tbody.innerHTML = '';
+
+  appState.rendiciones.slice().reverse().forEach(r => {
+    const u = appState.usuarios.find(usr => usr.id === r.responsable_id) || { nombre: r.responsable_id };
+    const badgeColor = r.estado === 'APROBADA' ? 'badge-ok' : 'badge-bad';
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="fw-bold text-primary">${r.numero_rendicion || r.id}</td>
+        <td>${u.nombre}</td>
+        <td>${r.pedidos_entregados_count || 0}</td>
+        <td>Bs ${parseFloat(r.total_esperado || 0).toFixed(2)}</td>
+        <td>Bs ${parseFloat(r.total_declarado || 0).toFixed(2)}</td>
+        <td class="${r.diferencia_total != 0 ? 'text-danger fw-bold' : 'text-success'}">Bs ${parseFloat(r.diferencia_total || 0).toFixed(2)}</td>
+        <td><span class="badge-pill ${badgeColor}">${r.estado}</span></td>
+      </tr>
+    `;
+  });
+}
+
+function calculateRendicionEsperado() {
+  const respId = document.getElementById('rendResponsableSelect').value;
+  if (!respId) return;
+
+  const entregasAll = appState.entregas.filter(e => e.responsable_id === respId && e.estado === 'ENTREGADO');
+  const pedidoIds = entregasAll.map(e => e.pedido_id);
+  const misPedidos = appState.pedidos.filter(p => pedidoIds.includes(p.id));
+
+  const totalEsperado = misPedidos.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
+  document.getElementById('rendTotalEsperado').innerText = `Bs ${totalEsperado.toFixed(2)}`;
+  calculateRendicionCalculo();
+}
+
+function calculateRendicionCalculo() {
+  const espStr = document.getElementById('rendTotalEsperado').innerText.replace('Bs ', '');
+  const esperado = parseFloat(espStr || 0);
+
+  const efecDecl = parseFloat(document.getElementById('rendEfectivoDecl').value || 0);
+  const qrDecl = parseFloat(document.getElementById('rendQrDecl').value || 0);
+  const totalDecl = efecDecl + qrDecl;
+
+  const dif = totalDecl - esperado;
+
+  document.getElementById('rendTotalDeclarado').innerText = `Bs ${totalDecl.toFixed(2)}`;
+  const difElem = document.getElementById('rendDiferencia');
+  difElem.innerText = `Bs ${dif.toFixed(2)}`;
+  difElem.className = dif !== 0 ? 'text-danger fw-bold' : 'text-success fw-bold';
+}
+
+async function submitRendicion() {
+  const respId = document.getElementById('rendResponsableSelect').value;
+  const efecDecl = parseFloat(document.getElementById('rendEfectivoDecl').value || 0);
+  const qrDecl = parseFloat(document.getElementById('rendQrDecl').value || 0);
+
+  if (!respId) {
+    showToast("Selecciona una persona responsable.", "danger");
+    return;
+  }
+
+  const res = await callApi('crearRendicion', {
+    responsable_id: respId,
+    efectivo_declarado: efecDecl,
+    qr_declarado: qrDecl,
+    usuario_cierre_id: currentUser.id
+  });
+
+  if (res.success) {
+    showToast(res.message);
+    document.getElementById('rendEfectivoDecl').value = 0;
+    document.getElementById('rendQrDecl').value = 0;
+    await loadAppState();
+  } else {
+    showToast(res.error || "Error al procesar rendición", "danger");
+  }
+}
+
+// ==================== VISTA: CATEGORÍAS ====================
+function renderCategoriasTable() {
+  const busca = (document.getElementById('fCatBusca') ? document.getElementById('fCatBusca').value : '').toLowerCase();
+  const tbody = document.getElementById('tbl-categorias');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const cats = (appState.categorias || []).filter(c => c.nombre.toLowerCase().includes(busca) || (c.codigo || '').toLowerCase().includes(busca));
+
+  cats.forEach(c => {
+    tbody.innerHTML += `
+      <tr>
+        <td class="text-mono">${c.id}</td>
+        <td><span class="badge-pill badge-neutral">${c.codigo || c.id}</span></td>
+        <td class="fw-bold">${c.nombre}</td>
+        <td>${c.descripcion || '-'}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-teal" onclick="editCategoriaModal('${c.id}')"><i class="bi bi-pencil"></i></button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function openCategoriaModal() {
+  document.getElementById('catId').value = '';
+  document.getElementById('catNombre').value = '';
+  document.getElementById('catCodigo').value = '';
+  document.getElementById('catDesc').value = '';
+  document.getElementById('modalCategoriaTitle').innerText = 'Nueva Categoría';
+  new bootstrap.Modal(document.getElementById('modalCategoria')).show();
+}
+
+function editCategoriaModal(catId) {
+  const c = (appState.categorias || []).find(cat => cat.id === catId);
+  if (!c) return;
+
+  document.getElementById('catId').value = c.id;
+  document.getElementById('catNombre').value = c.nombre;
+  document.getElementById('catCodigo').value = c.codigo || '';
+  document.getElementById('catDesc').value = c.descripcion || '';
+  document.getElementById('modalCategoriaTitle').innerText = 'Editar Categoría';
+  new bootstrap.Modal(document.getElementById('modalCategoria')).show();
+}
+
+async function submitCategoriaModal() {
+  const id = document.getElementById('catId').value;
+  const nombre = document.getElementById('catNombre').value;
+  const codigo = document.getElementById('catCodigo').value;
+  const descripcion = document.getElementById('catDesc').value;
+
+  if (!nombre) {
+    showToast("El nombre de la categoría es obligatorio.", "danger");
+    return;
+  }
+
+  const res = await callApi('saveCategoria', { id, nombre, codigo, descripcion });
+  if (res.success) {
+    bootstrap.Modal.getInstance(document.getElementById('modalCategoria')).hide();
+    showToast("Categoría guardada correctamente.");
+    await loadAppState();
+  } else {
+    showToast(res.error || "Error al guardar categoría", "danger");
+  }
+}
+
+// ==================== VISTA: PRODUCTOS ====================
+function renderProductosTable() {
+  const busca = document.getElementById('fProdBusca').value.toLowerCase();
+  const tbody = document.getElementById('tbl-productos');
+  tbody.innerHTML = '';
+
+  const prods = appState.productos.filter(p => p.nombre.toLowerCase().includes(busca) || p.codigo.toLowerCase().includes(busca));
+
+  prods.forEach(p => {
+    tbody.innerHTML += `
+      <tr>
+        <td class="text-mono">${p.codigo}</td>
+        <td class="fw-bold">${p.nombre}</td>
+        <td><span class="badge-pill badge-neutral">${p.tipo}</span></td>
+        <td class="fw-bold text-primary">Bs ${parseFloat(p.precio).toFixed(2)}</td>
+        <td>${p.stock}</td>
+        <td><span class="badge-pill ${p.activo === 'true' ? 'badge-ok' : 'badge-bad'}">${p.activo === 'true' ? 'Activo' : 'Inactivo'}</span></td>
+        <td>
+          <button class="btn btn-sm btn-outline-teal" onclick="editProductoModal('${p.id}')"><i class="bi bi-pencil"></i></button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function openProductoModal() {
+  document.getElementById('prodId').value = '';
+  document.getElementById('prodNombre').value = '';
+  document.getElementById('prodPrecio').value = '20.00';
+  document.getElementById('prodStock').value = '100';
+
+  const catSelect = document.getElementById('prodCatSelect');
+  catSelect.innerHTML = '';
+  appState.categorias.forEach(c => catSelect.innerHTML += `<option value="${c.id}">${c.nombre}</option>`);
+
+  document.getElementById('modalProductoTitle').innerText = 'Nuevo Producto / Plato';
+  new bootstrap.Modal(document.getElementById('modalProducto')).show();
+}
+
+function editProductoModal(prodId) {
+  const p = appState.productos.find(pr => pr.id === prodId);
+  if (!p) return;
+
+  document.getElementById('prodId').value = p.id;
+  document.getElementById('prodNombre').value = p.nombre;
+  document.getElementById('prodPrecio').value = p.precio;
+  document.getElementById('prodStock').value = p.stock;
+
+  const catSelect = document.getElementById('prodCatSelect');
+  catSelect.innerHTML = '';
+  appState.categorias.forEach(c => catSelect.innerHTML += `<option value="${c.id}" ${c.id === p.categoria_id ? 'selected' : ''}>${c.nombre}</option>`);
+
+  document.getElementById('modalProductoTitle').innerText = 'Editar Producto';
+  new bootstrap.Modal(document.getElementById('modalProducto')).show();
+}
+
+async function submitProductoModal() {
+  const id = document.getElementById('prodId').value;
+  const catId = document.getElementById('prodCatSelect').value;
+  const nombre = document.getElementById('prodNombre').value;
+  const precio = parseFloat(document.getElementById('prodPrecio').value || 0);
+  const stock = parseInt(document.getElementById('prodStock').value || 0);
+
+  const res = await callApi('saveProducto', { id, categoria_id: catId, nombre, precio, stock });
+  if (res.success) {
+    bootstrap.Modal.getInstance(document.getElementById('modalProducto')).hide();
+    showToast("Producto guardado correctamente.");
+    await loadAppState();
+  }
+}
+
+// ==================== HISTORIAL DE PEDIDO MODAL ====================
+function openHistorialModal(pedidoId) {
+  const timeline = document.getElementById('historialTimeline');
+  timeline.innerHTML = '';
+
+  const list = appState.pedidoHistorial.filter(h => h.pedido_id === pedidoId);
+  if (list.length === 0) {
+    timeline.innerHTML = '<div class="text-muted text-center py-3">No hay historial registrado para este pedido.</div>';
+  } else {
+    list.forEach(h => {
+      const u = appState.usuarios.find(usr => usr.id === h.usuario_id) || { nombre: h.usuario_id };
+      timeline.innerHTML += `
+        <div class="border-start border-3 border-teal ps-3 py-2 mb-3">
+          <div class="fw-bold">${h.fecha}</div>
+          <div>${h.observaciones}</div>
+          <small class="text-muted">Por: ${u.nombre}</small>
+        </div>
+      `;
+    });
+  }
+
+  new bootstrap.Modal(document.getElementById('modalHistorial')).show();
+}
+
+// ==================== CIERRE DE KERMESSE ====================
+function showCierreKermesseModal() {
+  const detalles = appState.pedidoDetalles || [];
+  const prods = appState.productos || [];
+  const catTotals = { Platos: 0, Bebidas: 0, Postres: 0, Combos: 0, Otros: 0 };
+
+  detalles.forEach(d => {
+    const prod = prods.find(p => p.id === d.producto_id);
+    const sub = parseFloat(d.subtotal || 0);
+    if (prod) {
+      if (prod.tipo === 'PLATO') catTotals.Platos += sub;
+      else if (prod.tipo === 'BEBIDA') catTotals.Bebidas += sub;
+      else if (prod.tipo === 'POSTRE') catTotals.Postres += sub;
+      else if (prod.tipo === 'COMBO') catTotals.Combos += sub;
+      else catTotals.Otros += sub;
+    }
+  });
+
+  const desContainer = document.getElementById('cierreDesgloseCats');
+  desContainer.innerHTML = '';
+  Object.keys(catTotals).forEach(cat => {
+    desContainer.innerHTML += `<div class="col-6 col-md-4 py-1"><strong>${cat}:</strong> Bs ${catTotals[cat].toFixed(2)}</div>`;
+  });
+
+  const totalVentas = Object.values(catTotals).reduce((a, b) => a + b, 0);
+  const totalAyudas = (appState.ayudasEconomicas || []).reduce((sum, a) => sum + parseFloat(a.monto || 0), 0);
+  const totalRecaudado = totalVentas + totalAyudas;
+
+  let totalEfec = 0, totalQr = 0;
+  (appState.pagos || []).filter(p => p.estado === 'REGISTRADO').forEach(p => {
+    if (p.tipo_pago_id === 'TPG000001') totalEfec += parseFloat(p.monto || 0);
+    else totalQr += parseFloat(p.monto || 0);
+  });
+  (appState.ayudasEconomicas || []).forEach(a => {
+    if (a.tipo_pago_id === 'TPG000001') totalEfec += parseFloat(a.monto || 0);
+    else totalQr += parseFloat(a.monto || 0);
+  });
+
+  document.getElementById('cierreTotalVentas').innerText = `Bs ${totalVentas.toFixed(2)}`;
+  document.getElementById('cierreTotalAyudas').innerText = `Bs ${totalAyudas.toFixed(2)}`;
+  document.getElementById('cierreTotalRecaudado').innerText = `Bs ${totalRecaudado.toFixed(2)}`;
+  document.getElementById('cierreTotalEfectivo').innerText = `Bs ${totalEfec.toFixed(2)}`;
+  document.getElementById('cierreTotalQr').innerText = `Bs ${totalQr.toFixed(2)}`;
+
+  new bootstrap.Modal(document.getElementById('modalCierreKermesse')).show();
+}
+
+async function submitCierreKermesse() {
+  const obs = document.getElementById('cierreObs').value;
+  const res = await callApi('cerrarKermesse', { observaciones: obs, usuario_cierre_id: currentUser.id });
+
+  if (res.success) {
+    bootstrap.Modal.getInstance(document.getElementById('modalCierreKermesse')).hide();
+    showToast("Cierre de Kermesse registrado y auditado correctamente.");
+    await loadAppState();
+  }
+}
+
+// ==================== INICIALIZACIÓN Y PERSISTENCIA DE SESIÓN ====================
+window.addEventListener('DOMContentLoaded', () => {
+  const savedState = localStorage.getItem('kermesse_app_state');
+  if (savedState) {
+    try {
+      appState = JSON.parse(savedState);
+    } catch(e) {}
+  }
+  ensureMockData();
+
+  const savedUser = localStorage.getItem('kermesse_user');
+  if (savedUser) {
+    try {
+      currentUser = JSON.parse(savedUser);
+      showAppScreen();
+      renderAllViews();
+      // Cargar datos frescos en segundo plano sin bloquear la pantalla
+      loadAppState(true);
+    } catch(e) {
+      localStorage.removeItem('kermesse_user');
+    }
+  }
+});
+</script>
+</body>
+</html>
