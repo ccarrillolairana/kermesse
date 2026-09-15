@@ -607,7 +607,12 @@
           </div>
 
           <div class="cs-card">
-            <div class="cs-card-header"><span><i class="bi bi-bag-check me-1"></i>Canasta del Pedido</span></div>
+            <div class="cs-card-header d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-bag-check me-1"></i>Canasta del Pedido</span>
+              <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="resetPosForm()" title="Vaciar canasta y limpiar todo el formulario">
+                <i class="bi bi-trash me-1"></i>Limpiar
+              </button>
+            </div>
             <div class="cs-card-body">
               <div class="mb-2">
                 <label class="form-label fw-bold">Cliente / Persona</label>
@@ -2254,6 +2259,27 @@ function togglePosDeliveryFields() {
   }
 }
 
+function resetPosForm() {
+  posCart = [];
+  if (document.getElementById('posClienteNombre')) document.getElementById('posClienteNombre').value = "Público General";
+  if (document.getElementById('posClienteTel')) document.getElementById('posClienteTel').value = "0";
+  if (document.getElementById('posEntregaSelect')) {
+    document.getElementById('posEntregaSelect').value = "MET000001";
+    togglePosDeliveryFields();
+  }
+  if (document.getElementById('posDireccion')) document.getElementById('posDireccion').value = "";
+  if (document.getElementById('posLat')) document.getElementById('posLat').value = "";
+  if (document.getElementById('posLng')) document.getElementById('posLng').value = "";
+  if (document.getElementById('posMapStatusText')) document.getElementById('posMapStatusText').innerHTML = `<i class="bi bi-geo-alt"></i> Sin ubicación en mapa`;
+  if (document.getElementById('posDescuento')) document.getElementById('posDescuento').value = 0;
+  if (document.getElementById('posPagoTipo')) document.getElementById('posPagoTipo').value = "TPG000001";
+  if (document.getElementById('posPagoMonto')) document.getElementById('posPagoMonto').value = "";
+  if (document.getElementById('posPagoRef')) document.getElementById('posPagoRef').value = "";
+
+  renderPosCartRows();
+  calculatePosTotals();
+}
+
 async function submitPosPedido() {
   if (posCart.length === 0) {
     showToast("Agrega al menos un producto a la canasta.", "danger");
@@ -2317,16 +2343,7 @@ async function submitPosPedido() {
   const res = await callApi('savePedido', payload);
   if (res.success) {
     showToast(res.message || "Pedido guardado con éxito.");
-    posCart = [];
-    document.getElementById('posClienteNombre').value = "Público General";
-    document.getElementById('posClienteTel').value = "0";
-    document.getElementById('posDireccion').value = "";
-    document.getElementById('posLat').value = "";
-    document.getElementById('posLng').value = "";
-    document.getElementById('posMapStatusText').innerHTML = `<i class="bi bi-geo-alt"></i> Sin ubicación en mapa`;
-    document.getElementById('posDescuento').value = 0;
-    document.getElementById('posPagoMonto').value = '';
-    document.getElementById('posPagoRef').value = '';
+    resetPosForm();
     await loadAppState(true);
     switchPage('pedidos');
   } else {
