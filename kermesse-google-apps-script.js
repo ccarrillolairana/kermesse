@@ -259,9 +259,11 @@ function handleRequest(e) {
 
   const isWriteAction = ['savePedido', 'savePago', 'cambiarEstadoPedido', 'asignarEntrega', 'saveAyudaEconomica', 'saveCategoria', 'saveProducto', 'crearRendicion', 'aprobarRendicion', 'cerrarKermesse'].indexOf(action) !== -1;
   const lock = LockService.getScriptLock();
+  let hasLock = false;
   if (isWriteAction) {
     try {
       lock.waitLock(3000);
+      hasLock = true;
     } catch (err) {
       return jsonResponse({ success: false, error: 'Servidor ocupado. Intenta de nuevo en unos segundos.' });
     }
@@ -860,6 +862,8 @@ function handleRequest(e) {
   } catch (err) {
     return jsonResponse({ success: false, error: 'Error del Servidor: ' + err.message });
   } finally {
-    lock.releaseLock();
+    if (hasLock) {
+      try { lock.releaseLock(); } catch(e) {}
+    }
   }
 }
