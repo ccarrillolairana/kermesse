@@ -1174,16 +1174,20 @@ async function callApi(action, data = {}, silent = false) {
   if (!silent) showSpinner(true);
   try {
     data.action = action;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       if (!silent) showSpinner(false);
       console.warn(`Respuesta HTTP ${response.status} de Google Apps Script. Usando simulación local.`);
-      if (!silent) showToast("Apps Script respondió con error HTTP 404. Procesando en modo local.", "warning");
       return handleLocalSimulation(action, data);
     }
 
@@ -1194,7 +1198,6 @@ async function callApi(action, data = {}, silent = false) {
     } catch (jsonErr) {
       if (!silent) showSpinner(false);
       console.warn("Respuesta no válida del servidor Google Apps Script (HTML/404):", text);
-      if (!silent) showToast("Google Apps Script sin acceso o URL no encontrada. Guardando en modo local.", "warning");
       return handleLocalSimulation(action, data);
     }
 
@@ -1202,7 +1205,11 @@ async function callApi(action, data = {}, silent = false) {
     return result;
   } catch (err) {
     if (!silent) showSpinner(false);
-    console.error("Error al conectar con Google Apps Script:", err);
+    if (err.name !== 'AbortError') {
+      console.error("Error al conectar con Google Apps Script:", err);
+    } else {
+      console.warn("Tiempo de respuesta agotado (3.5s) con Google Apps Script. Usando modo local instantáneo.");
+    }
     return handleLocalSimulation(action, data);
   }
 }
@@ -2113,7 +2120,7 @@ async function submitPosPedido() {
     document.getElementById('posDescuento').value = 0;
     document.getElementById('posPagoMonto').value = '';
     document.getElementById('posPagoRef').value = '';
-    await loadAppState();
+    renderAllViews();
     switchPage('pedidos');
   } else {
     showToast(res.error || "Error al guardar pedido", "danger");
@@ -2190,7 +2197,7 @@ async function cambiarEstadoPedidoSelect(pedidoId, estadoNuevoId) {
   const res = await callApi('cambiarEstadoPedido', { pedido_id: pedidoId, estado_nuevo_id: estadoNuevoId, usuario_id: currentUser.id });
   if (res.success) {
     showToast("Estado actualizado correctamente.");
-    await loadAppState();
+    renderAllViews();
   }
 }
 
@@ -2211,7 +2218,7 @@ async function submitPagoModal() {
   if (res.success) {
     bootstrap.Modal.getInstance(document.getElementById('modalPago')).hide();
     showToast("Pago registrado correctamente.");
-    await loadAppState();
+    renderAllViews();
   } else {
     showToast(res.error || "Error al registrar pago", "danger");
   }
@@ -2285,7 +2292,7 @@ async function driverAction(pedidoId, action) {
   const res = await callApi(action, { pedido_id: pedidoId, usuario_id: currentUser.id });
   if (res.success) {
     showToast(res.message);
-    await loadAppState();
+    renderAllViews();
   }
 }
 
@@ -2332,7 +2339,7 @@ async function submitAsignacion() {
   const res = await callApi('asignarEntrega', { pedido_ids: selected, responsable_id: respId, usuario_id: currentUser.id });
   if (res.success) {
     showToast(res.message);
-    await loadAppState();
+    renderAllViews();
   }
 }
 
@@ -2371,7 +2378,7 @@ async function submitAyuda() {
     document.getElementById('ayuPersona').value = '';
     document.getElementById('ayuMonto').value = '';
     document.getElementById('ayuRef').value = '';
-    await loadAppState();
+    renderAllViews();
   }
 }
 
@@ -2520,7 +2527,7 @@ async function submitCategoriaModal() {
   if (res.success) {
     bootstrap.Modal.getInstance(document.getElementById('modalCategoria')).hide();
     showToast("Categoría guardada correctamente.");
-    await loadAppState();
+    renderAllViews();
   } else {
     showToast(res.error || "Error al guardar categoría", "danger");
   }
@@ -2593,7 +2600,7 @@ async function submitProductoModal() {
   if (res.success) {
     bootstrap.Modal.getInstance(document.getElementById('modalProducto')).hide();
     showToast("Producto guardado correctamente.");
-    await loadAppState();
+    renderAllViews();
   }
 }
 
@@ -2675,7 +2682,7 @@ async function submitCierreKermesse() {
   if (res.success) {
     bootstrap.Modal.getInstance(document.getElementById('modalCierreKermesse')).hide();
     showToast("Cierre de Kermesse registrado y auditado correctamente.");
-    await loadAppState();
+    renderAllViews();
   }
 }
 

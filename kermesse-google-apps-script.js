@@ -246,24 +246,28 @@ function doPost(e) {
 }
 
 function handleRequest(e) {
+  let action = e ? e.parameter.action : null;
+  let body = {};
+
+  if (e && e.postData && e.postData.contents) {
+    try { body = JSON.parse(e.postData.contents); } catch (err) { }
+  }
+  if (!action && body.action) action = body.action;
+  if (e && e.parameter.data && Object.keys(body).length === 0) {
+    try { body = JSON.parse(e.parameter.data); } catch (err) { }
+  }
+
+  const isWriteAction = ['savePedido', 'savePago', 'cambiarEstadoPedido', 'asignarEntrega', 'saveAyudaEconomica', 'saveCategoria', 'saveProducto', 'crearRendicion', 'aprobarRendicion', 'cerrarKermesse'].indexOf(action) !== -1;
   const lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(10000); // 10 segundos de espera para concurrencia
-  } catch (err) {
-    return jsonResponse({ success: false, error: 'Servidor ocupado. Intenta de nuevo en unos segundos.' });
+  if (isWriteAction) {
+    try {
+      lock.waitLock(3000);
+    } catch (err) {
+      return jsonResponse({ success: false, error: 'Servidor ocupado. Intenta de nuevo en unos segundos.' });
+    }
   }
 
   try {
-    let action = e.parameter.action;
-    let body = {};
-
-    if (e.postData && e.postData.contents) {
-      try { body = JSON.parse(e.postData.contents); } catch (err) { }
-    }
-    if (!action && body.action) action = body.action;
-    if (e.parameter.data && Object.keys(body).length === 0) {
-      try { body = JSON.parse(e.parameter.data); } catch (err) { }
-    }
 
     switch (action) {
       case 'ping':
