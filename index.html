@@ -475,7 +475,9 @@
         <a href="#" id="nav-mispedidos" onclick="switchPage('mispedidos');return false"><i class="bi bi-person-badge-fill"></i>Mis Pedidos (Repartidor)</a>
 
         <div class="sidebar-section">Despacho & Cajas</div>
-        <a href="#" id="nav-entregas" onclick="switchPage('entregas');return false"><i class="bi bi-truck"></i>Asignar Entregas</a>
+        <a href="#" id="nav-entregas" onclick="switchPage('entregas');return false"><i class="bi bi-truck"></i>Asignar Entregas (Delivery)</a>
+        <a href="#" id="nav-recojosite" onclick="switchPage('recojosite');return false"><i class="bi bi-shop"></i>Recojo en Sitio (Mostrador)</a>
+        <a href="#" id="nav-concluidos" onclick="switchPage('concluidos');return false"><i class="bi bi-check-circle-fill"></i>Pedidos Concluidos</a>
         <a href="#" id="nav-ayudas" onclick="switchPage('ayudas');return false"><i class="bi bi-heart-fill"></i>Ayudas Económicas</a>
         <a href="#" id="nav-rendiciones" onclick="switchPage('rendiciones');return false"><i class="bi bi-cash-stack"></i>Rendición de Dinero</a>
 
@@ -760,6 +762,68 @@
         </div>
       </div>
 
+      <!-- ==================== RECOJO EN SITIO / MOSTRADOR ==================== -->
+      <div id="page-recojosite" class="page">
+        <div class="section-title"><i class="bi bi-shop"></i>Recojo en Sitio (Entrega en Mostrador)</div>
+        <div class="section-sub">Módulo para marcar y gestionar la entrega inmediata de pedidos presenciales.</div>
+
+        <div class="cs-card mb-4">
+          <div class="cs-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span><i class="bi bi-clock-history me-1"></i>Pedidos Listos para Entregar en Sitio</span>
+            <input type="text" id="recojoSearch" class="form-control form-control-sm style-inline" style="width:250px" placeholder="Buscar por cliente, N° o tel..." onkeyup="filterRecojoTable()">
+          </div>
+          <div class="cs-card-body p-0">
+            <div class="table-responsive-wrap">
+              <table class="cs-table">
+                <thead>
+                  <tr>
+                    <th>N° Pedido</th>
+                    <th>Cliente</th>
+                    <th>Teléfono</th>
+                    <th>Total</th>
+                    <th>Estado Pago</th>
+                    <th>Estado Pedido</th>
+                    <th class="text-end">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="tbl-recojo-pedidos"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== PEDIDOS CONCLUIDOS ==================== -->
+      <div id="page-concluidos" class="page">
+        <div class="section-title"><i class="bi bi-check-circle-fill text-success"></i>Pedidos Concluidos (Entregados)</div>
+        <div class="section-sub">Historial completo de pedidos finalizados con éxito para verificación rápida.</div>
+
+        <div class="cs-card mb-4">
+          <div class="cs-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span><i class="bi bi-archive me-1"></i>Historial de Pedidos Entregados</span>
+            <input type="text" id="concluidosSearch" class="form-control form-control-sm style-inline" style="width:250px" placeholder="Buscar por cliente, N° o tel..." onkeyup="filterConcluidosTable()">
+          </div>
+          <div class="cs-card-body p-0">
+            <div class="table-responsive-wrap">
+              <table class="cs-table">
+                <thead>
+                  <tr>
+                    <th>N° Pedido</th>
+                    <th>Cliente / Teléfono</th>
+                    <th>Método Entrega</th>
+                    <th>Total</th>
+                    <th>Pago</th>
+                    <th>Fecha / Hora</th>
+                    <th class="text-end">Detalles</th>
+                  </tr>
+                </thead>
+                <tbody id="tbl-concluidos-pedidos"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ==================== AYUDAS ECONÓMICAS ==================== -->
       <div id="page-ayudas" class="page">
         <div class="section-title"><i class="bi bi-heart-fill"></i>Ayudas Económicas</div>
@@ -952,6 +1016,12 @@
     </a>
     <a href="#" id="bnav-entregas" onclick="switchPage('entregas');return false">
       <i class="bi bi-truck"></i><span>Despacho</span>
+    </a>
+    <a href="#" id="bnav-recojosite" onclick="switchPage('recojosite');return false">
+      <i class="bi bi-shop"></i><span>Mostrador</span>
+    </a>
+    <a href="#" id="bnav-concluidos" onclick="switchPage('concluidos');return false">
+      <i class="bi bi-check-circle-fill"></i><span>Concluidos</span>
     </a>
     <a href="#" onclick="toggleMobileSidebar();return false">
       <i class="bi bi-grid-fill"></i><span>Menú Más</span>
@@ -1624,6 +1694,8 @@ function renderAllViews() {
   renderPedidosTable();
   renderMisPedidosDriver();
   renderEntregasAsignar();
+  renderRecojoSiteView();
+  renderConcluidosView();
   renderAyudasTable();
   renderRendicionesView();
   renderCategoriasTable();
@@ -2394,27 +2466,44 @@ async function driverAction(pedidoId, action) {
   }
 }
 
-// ==================== VISTA: ASIGNACIÓN DE ENTREGAS ====================
+// ==================== VISTA: ASIGNACIÓN DE ENTREGAS (DELIVERY MOTORIZADOS) ====================
 function renderEntregasAsignar() {
   const respSelect = document.getElementById('entregasResponsableSelect');
+  if (!respSelect) return;
   respSelect.innerHTML = '';
   appState.usuarios.filter(u => u.rol === 'Repartidor' || u.rol === 'Administrador').forEach(u => {
     respSelect.innerHTML += `<option value="${u.id}">${u.nombre} (${u.rol})</option>`;
   });
 
   const tbody = document.getElementById('tbl-asignar-pedidos');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
-  const listos = appState.pedidos.filter(p => p.estado_pedido_id === 'EST000004' || p.estado_pedido_id === 'EST000001' || p.estado_pedido_id === 'EST000002');
+  const isDeliveryMethod = (p) => {
+    const m = String(p.metodo_entrega_id || '').toUpperCase();
+    return m === 'MET000002' || m === 'MET000003' || m.includes('PARA_LLEVAR') || m.includes('DOMICILIO');
+  };
+
+  const listos = appState.pedidos.filter(p => {
+    const isActivo = p.estado_pedido_id !== 'EST000010' && p.estado_pedido_id !== 'EST000009' && p.estado_pedido_id !== 'EST000005' && p.estado_pedido_id !== 'EST000006';
+    return isActivo && isDeliveryMethod(p);
+  });
+
+  if (listos.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-truck fs-3 d-block mb-1"></i>No hay pedidos de Delivery / Para Llevar listos para asignar.</td></tr>`;
+    return;
+  }
+
   listos.forEach(p => {
     const cli = (appState.clientes.find(c => c.id === p.cliente_id) || {}).nombre || 'Mostrador';
+    const metObj = appState.metodosEntrega.find(m => m.id === p.metodo_entrega_id) || { nombre: p.metodo_entrega_id };
     tbody.innerHTML += `
       <tr>
         <td><input type="checkbox" class="chk-asignar" value="${p.id}"></td>
         <td class="fw-bold text-primary">${p.numero}</td>
         <td>${cli}</td>
-        <td>${p.metodo_entrega_id}</td>
-        <td class="fw-bold">Bs ${parseFloat(p.total).toFixed(2)}</td>
+        <td><span class="badge-pill badge-neutral">${metObj.nombre || p.metodo_entrega_id}</span></td>
+        <td class="fw-bold text-teal">Bs ${parseFloat(p.total).toFixed(2)}</td>
         <td><span class="badge-pill badge-info">LISTO PARA ASIGNAR</span></td>
       </tr>
     `;
@@ -2439,6 +2528,128 @@ async function submitAsignacion() {
     showToast(res.message);
     renderAllViews();
   }
+}
+
+// ==================== VISTA: RECOJO EN SITIO / MOSTRADOR ====================
+function renderRecojoSiteView() {
+  const tbody = document.getElementById('tbl-recojo-pedidos');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const isRecojoMethod = (p) => {
+    const m = String(p.metodo_entrega_id || '').toUpperCase();
+    return m === 'MET000001' || m === 'RECOJO_SITIO' || m.includes('RECOJO');
+  };
+
+  const recojoPedidos = appState.pedidos.filter(p => {
+    const isActivo = p.estado_pedido_id !== 'EST000010' && p.estado_pedido_id !== 'EST000009';
+    return isActivo && isRecojoMethod(p);
+  });
+
+  if (recojoPedidos.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-inbox fs-3 d-block mb-1"></i>No hay pedidos pendientes de recojo en sitio.</td></tr>`;
+    return;
+  }
+
+  recojoPedidos.slice().reverse().forEach(p => {
+    const cli = (appState.clientes.find(c => c.id === p.cliente_id) || {});
+    const cliName = p.cliente_nombre || cli.nombre || 'Público General';
+    const cliTel = p.cliente_telefono || cli.telefono || '0';
+    const estObj = appState.estadosPedido.find(e => e.id === p.estado_pedido_id) || { nombre: p.estado_pedido_id, color: 'badge-neutral' };
+    const pgoStatus = getOrderPaymentStatus(p);
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="fw-bold text-primary">${p.numero}</td>
+        <td><div class="fw-semibold">${cliName}</div></td>
+        <td><span class="small text-muted"><i class="bi bi-telephone me-1"></i>${cliTel}</span></td>
+        <td class="fw-bold text-teal">Bs ${parseFloat(p.total).toFixed(2)}</td>
+        <td><span class="badge-pill ${pgoStatus.color}">${pgoStatus.status}</span></td>
+        <td><span class="badge-pill ${estObj.color}">${estObj.nombre}</span></td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-success text-white" onclick="marcarEntregadoSitio('${p.id}')">
+            <i class="bi bi-check-circle-fill me-1"></i>Entregar en Sitio
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function filterRecojoTable() {
+  const query = (document.getElementById('recojoSearch')?.value || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('#tbl-recojo-pedidos tr');
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(query) ? '' : 'none';
+  });
+}
+
+async function marcarEntregadoSitio(pedidoId) {
+  if (!confirm("¿Confirmar la entrega de este pedido en sitio/mostrador?")) return;
+  const res = await callApi('cambiarEstadoPedido', {
+    pedido_id: pedidoId,
+    estado_nuevo_id: 'EST000009',
+    usuario_id: currentUser.id
+  });
+
+  if (res.success) {
+    showToast("¡Pedido marcado como ENTREGADO en sitio exitosamente!");
+    await loadAppState(true);
+  } else {
+    showToast(res.error || "Error al actualizar estado", "danger");
+  }
+}
+
+// ==================== VISTA: PEDIDOS CONCLUIDOS (HISTORIAL) ====================
+function renderConcluidosView() {
+  const tbody = document.getElementById('tbl-concluidos-pedidos');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const concluidos = appState.pedidos.filter(p => p.estado_pedido_id === 'EST000009');
+
+  if (concluidos.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-check2-all fs-3 d-block mb-1"></i>No hay pedidos entregados aún.</td></tr>`;
+    return;
+  }
+
+  concluidos.slice().reverse().forEach(p => {
+    const cli = (appState.clientes.find(c => c.id === p.cliente_id) || {});
+    const cliName = p.cliente_nombre || cli.nombre || 'Público General';
+    const cliTel = p.cliente_telefono || cli.telefono || '0';
+    const pgoStatus = getOrderPaymentStatus(p);
+    const metObj = appState.metodosEntrega.find(m => m.id === p.metodo_entrega_id) || { nombre: p.metodo_entrega_id || 'RECOJO_SITIO' };
+    const fechaFormateada = p.created_at ? new Date(p.created_at).toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' }) : (p.fecha_pedido || '-');
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="fw-bold text-primary">${p.numero}</td>
+        <td>
+          <div class="fw-semibold">${cliName}</div>
+          <div class="small text-muted"><i class="bi bi-telephone me-1"></i>${cliTel}</div>
+        </td>
+        <td><span class="badge-pill badge-neutral">${metObj.nombre || p.metodo_entrega_id}</span></td>
+        <td class="fw-bold text-teal">Bs ${parseFloat(p.total).toFixed(2)}</td>
+        <td><span class="badge-pill ${pgoStatus.color}">${pgoStatus.status}</span></td>
+        <td class="small text-muted">${fechaFormateada}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-teal" onclick="openDetallePedidoModal('${p.id}')">
+            <i class="bi bi-eye me-1"></i>Ver Detalle
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function filterConcluidosTable() {
+  const query = (document.getElementById('concluidosSearch')?.value || '').toLowerCase().trim();
+  const rows = document.querySelectorAll('#tbl-concluidos-pedidos tr');
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(query) ? '' : 'none';
+  });
 }
 
 // ==================== VISTA: AYUDAS ECONÓMICAS ====================
