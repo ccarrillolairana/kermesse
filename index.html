@@ -292,6 +292,45 @@
   .driver-order-card .doc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
   .driver-order-card .doc-title { font-weight: 850; font-size: 1.05rem; color: var(--cs-indigo); }
   .driver-order-card .doc-total { font-weight: 900; font-size: 1.15rem; color: var(--cs-teal); }
+
+  /* ==================== BUTTON & BADGE EXTENSIONS ==================== */
+  .btn-teal {
+    background: linear-gradient(135deg, var(--cs-indigo-vivid) 0%, var(--cs-teal-light) 100%);
+    color: #ffffff !important;
+    border: none;
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 6px rgba(17, 89, 89, 0.2);
+  }
+  .btn-teal:hover, .btn-teal:focus, .btn-teal:active {
+    background: linear-gradient(135deg, var(--cs-indigo) 0%, var(--cs-indigo-vivid) 100%);
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(17, 89, 89, 0.35);
+    transform: translateY(-1px);
+  }
+
+  .btn-outline-teal {
+    background: rgba(17, 89, 89, 0.05);
+    color: var(--cs-indigo-vivid) !important;
+    border: 1.5px solid var(--cs-indigo-vivid);
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+  }
+  .btn-outline-teal:hover, .btn-outline-teal:focus, .btn-outline-teal:active {
+    background: var(--cs-indigo-vivid);
+    color: #ffffff !important;
+    border-color: var(--cs-indigo-vivid);
+    box-shadow: 0 4px 12px rgba(17, 89, 89, 0.25);
+    transform: translateY(-1px);
+  }
+
+  .text-teal {
+    color: var(--cs-indigo-vivid) !important;
+  }
+  .bg-teal {
+    background-color: var(--cs-indigo-vivid) !important;
+    color: #ffffff !important;
+  }
 </style>
 </head>
 <body>
@@ -977,26 +1016,37 @@
 <!-- ==================== MODAL MAP PICKER ==================== -->
 <div class="modal fade" id="modalMapPicker" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content text-dark">
+    <div class="modal-content text-dark border-0 shadow-lg">
       <div class="modal-header bg-dark text-white py-2">
         <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-geo-alt-fill me-2 text-teal"></i>Seleccionar Ubicación Exacta en Mapa</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-3">
-        <div class="input-group mb-2">
-          <input type="text" id="mapSearchInput" class="form-control" placeholder="Buscar calle, zona o ciudad en Bolivia (Ej: Calama, Cochabamba)...">
-          <button class="btn btn-teal text-white" type="button" onclick="searchMapLocation()"><i class="bi bi-search"></i> Buscar</button>
-          <button class="btn btn-outline-teal" type="button" onclick="getMapCurrentGps()"><i class="bi bi-crosshair"></i> Mi GPS</button>
+        <div class="row g-2 mb-3">
+          <div class="col-12 col-md-8">
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-geo-alt"></i></span>
+              <input type="text" id="mapSearchInput" class="form-control border-start-0 ps-0" placeholder="Buscar calle, zona o ciudad en Bolivia (Ej: Calama, Cochabamba)..." onkeyup="if(event.key==='Enter') searchMapLocation()">
+              <button class="btn btn-teal px-3" type="button" id="btnMapSearch" onclick="searchMapLocation()">
+                <i class="bi bi-search me-1"></i> Buscar
+              </button>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <button class="btn btn-outline-teal w-100 d-flex align-items-center justify-content-center gap-2" type="button" id="btnMapGps" onclick="getMapCurrentGps()">
+              <i class="bi bi-crosshair fs-6"></i> <span>Mi Ubicación GPS</span>
+            </button>
+          </div>
         </div>
         <div id="leafletMapContainer" style="height: 380px; width: 100%; border-radius: 8px; border: 1px solid var(--border);"></div>
-        <div class="d-flex justify-content-between align-items-center mt-2 bg-light p-2 rounded">
+        <div class="d-flex justify-content-between align-items-center mt-2 bg-light p-2 rounded border">
           <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Haz clic en el mapa o arrastra el marcador para fijar las coordenadas.</small>
-          <span class="badge bg-dark text-mono" id="mapCoordsText">-17.38950, -66.15680</span>
+          <span class="badge bg-dark text-mono fs-7" id="mapCoordsText">-17.74262, -63.18473</span>
         </div>
       </div>
-      <div class="modal-footer py-2">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary btn-sm fw-bold" onclick="confirmMapPicker()"><i class="bi bi-check-lg me-1"></i>Confirmar Ubicación</button>
+      <div class="modal-footer py-2 bg-light">
+        <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-teal btn-sm fw-bold px-3" onclick="confirmMapPicker()"><i class="bi bi-check-lg me-1"></i>Confirmar Ubicación</button>
       </div>
     </div>
   </div>
@@ -1285,8 +1335,8 @@ function renderDashboardMap() {
   const mapBadge = document.getElementById('dashMapDeliveryCount');
   if (mapBadge) mapBadge.innerText = `${pedidosDelivery.length} Entregas Activas`;
 
-  let centerLat = -17.3895;
-  let centerLng = -66.1568;
+  let centerLat = -17.74262424990081;
+  let centerLng = -63.18473051459858;
 
   const firstWithCoords = pedidosDelivery.find(p => p.latitud && p.longitud);
   if (firstWithCoords) {
@@ -1349,7 +1399,7 @@ function renderDashboardMap() {
 let mapPickerInstance = null;
 let mapPickerMarker = null;
 let mapPickerTarget = 'pos';
-let currentSelectedCoords = { lat: -17.3895, lng: -66.1568 };
+let currentSelectedCoords = { lat: -17.74262424990081, lng: -63.18473051459858 };
 
 function openMapPicker(target = 'pos', initialLat = null, initialLng = null) {
   mapPickerTarget = target;
@@ -1362,7 +1412,7 @@ function openMapPicker(target = 'pos', initialLat = null, initialLng = null) {
     if (!isNaN(latVal) && !isNaN(lngVal)) {
       currentSelectedCoords = { lat: latVal, lng: lngVal };
     } else {
-      currentSelectedCoords = { lat: -17.3895, lng: -66.1568 };
+      currentSelectedCoords = { lat: -17.74262424990081, lng: -63.18473051459858 };
     }
   }
 
@@ -1421,7 +1471,10 @@ function getMapCurrentGps() {
     showToast("La geolocalización no está soportada por tu navegador.", "warning");
     return;
   }
+  const btn = document.getElementById('btnMapGps');
+  if (btn) btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Obteniendo GPS...';
   showToast("Obteniendo tu ubicación por GPS...", "info");
+
   navigator.geolocation.getCurrentPosition(pos => {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
@@ -1431,15 +1484,24 @@ function getMapCurrentGps() {
       mapPickerMarker.setLatLng([lat, lng]);
     }
     updateMapCoordsBadge(lat, lng);
+    if (btn) btn.innerHTML = '<i class="bi bi-crosshair fs-6"></i> <span>Mi Ubicación GPS</span>';
     showToast("¡Ubicación GPS obtenida correctamente!");
   }, err => {
+    if (btn) btn.innerHTML = '<i class="bi bi-crosshair fs-6"></i> <span>Mi Ubicación GPS</span>';
     showToast("No se pudo obtener la ubicación GPS: " + err.message, "danger");
-  });
+  }, { enableHighAccuracy: true, timeout: 10000 });
 }
 
 async function searchMapLocation() {
-  const query = document.getElementById('mapSearchInput').value.trim();
-  if (!query) return;
+  const input = document.getElementById('mapSearchInput');
+  const query = input ? input.value.trim() : '';
+  if (!query) {
+    showToast("Ingresa una dirección o zona para buscar.", "warning");
+    return;
+  }
+
+  const btn = document.getElementById('btnMapSearch');
+  if (btn) btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Buscando...';
 
   showToast("Buscando dirección...", "info");
   try {
@@ -1454,11 +1516,15 @@ async function searchMapLocation() {
         mapPickerMarker.setLatLng([lat, lng]);
       }
       updateMapCoordsBadge(lat, lng);
+      showToast("¡Dirección encontrada en el mapa!");
     } else {
       showToast("No se encontraron resultados para la búsqueda.", "warning");
     }
   } catch(e) {
     console.error(e);
+    showToast("Error al buscar la dirección.", "danger");
+  } finally {
+    if (btn) btn.innerHTML = '<i class="bi bi-search me-1"></i> Buscar';
   }
 }
 
