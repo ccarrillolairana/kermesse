@@ -332,6 +332,47 @@
     background-color: var(--cs-indigo-vivid) !important;
     color: #ffffff !important;
   }
+
+  /* ==================== MAP MODAL MOBILE OPTIMIZATION ==================== */
+  #modalMapPicker .modal-dialog {
+    max-width: 720px;
+    margin: 0.5rem auto;
+  }
+  #modalMapPicker .modal-content {
+    max-height: calc(100vh - 1rem);
+    display: flex;
+    flex-direction: column;
+  }
+  #modalMapPicker .modal-body {
+    overflow-y: auto;
+    padding: 0.75rem;
+  }
+  #modalMapPicker .modal-footer {
+    flex-shrink: 0;
+  }
+  .leaflet-picker-map {
+    height: 360px;
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  @media (max-width: 575.98px) {
+    #modalMapPicker .modal-dialog {
+      margin: 0.25rem;
+    }
+    #modalMapPicker .modal-header {
+      padding: 8px 12px;
+    }
+    #modalMapPicker .modal-body {
+      padding: 8px;
+    }
+    .leaflet-picker-map {
+      height: 240px;
+    }
+    #modalMapPicker .btn-sm {
+      padding: 6px 12px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -1022,30 +1063,30 @@
         <h5 class="modal-title fs-6 fw-bold"><i class="bi bi-geo-alt-fill me-2 text-teal"></i>Seleccionar Ubicación Exacta en Mapa</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body p-3">
-        <div class="row g-2 mb-3">
-          <div class="col-12 col-md-8">
-            <div class="input-group">
+      <div class="modal-body p-2 p-md-3">
+        <div class="row g-2 mb-2">
+          <div class="col-12 col-md-7">
+            <div class="input-group input-group-sm">
               <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-geo-alt"></i></span>
-              <input type="text" id="mapSearchInput" class="form-control border-start-0 ps-0" placeholder="Buscar calle, zona o ciudad en Bolivia (Ej: Calama, Cochabamba)..." onkeyup="if(event.key==='Enter') searchMapLocation()">
+              <input type="text" id="mapSearchInput" class="form-control border-start-0 ps-0" placeholder="Buscar calle, zona o ciudad..." onkeyup="if(event.key==='Enter') searchMapLocation()">
               <button class="btn btn-teal px-3" type="button" id="btnMapSearch" onclick="searchMapLocation()">
                 <i class="bi bi-search me-1"></i> Buscar
               </button>
             </div>
           </div>
-          <div class="col-12 col-md-4">
-            <button class="btn btn-outline-teal w-100 d-flex align-items-center justify-content-center gap-2" type="button" id="btnMapGps" onclick="getMapCurrentGps()">
+          <div class="col-12 col-md-5">
+            <button class="btn btn-outline-teal btn-sm w-100 d-flex align-items-center justify-content-center gap-2" type="button" id="btnMapGps" onclick="getMapCurrentGps()">
               <i class="bi bi-crosshair fs-6"></i> <span>Mi Ubicación GPS</span>
             </button>
           </div>
         </div>
-        <div id="leafletMapContainer" style="height: 380px; width: 100%; border-radius: 8px; border: 1px solid var(--border);"></div>
+        <div id="leafletMapContainer" class="leaflet-picker-map"></div>
         <div class="d-flex justify-content-between align-items-center mt-2 bg-light p-2 rounded border">
-          <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Haz clic en el mapa o arrastra el marcador para fijar las coordenadas.</small>
-          <span class="badge bg-dark text-mono fs-7" id="mapCoordsText">-17.74262, -63.18473</span>
+          <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Haz clic o arrastra el marcador para fijar la ubicación.</small>
+          <span class="badge bg-dark text-mono fs-7 ms-2" id="mapCoordsText">-17.74262, -63.18473</span>
         </div>
       </div>
-      <div class="modal-footer py-2 bg-light">
+      <div class="modal-footer py-2 bg-light d-flex justify-content-end gap-2">
         <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Cancelar</button>
         <button type="button" class="btn btn-teal btn-sm fw-bold px-3" onclick="confirmMapPicker()"><i class="bi bi-check-lg me-1"></i>Confirmar Ubicación</button>
       </div>
@@ -1436,7 +1477,7 @@ function initLeafletPickerMap() {
     mapPickerInstance = null;
   }
 
-  mapPickerInstance = L.map('leafletMapContainer').setView([currentSelectedCoords.lat, currentSelectedCoords.lng], 15);
+  mapPickerInstance = L.map('leafletMapContainer').setView([currentSelectedCoords.lat, currentSelectedCoords.lng], 14);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -1481,7 +1522,7 @@ function getMapCurrentGps() {
     const lng = pos.coords.longitude;
     currentSelectedCoords = { lat, lng };
     if (mapPickerInstance) {
-      mapPickerInstance.setView([lat, lng], 16);
+      mapPickerInstance.setView([lat, lng], 14);
       mapPickerMarker.setLatLng([lat, lng]);
     }
     updateMapCoordsBadge(lat, lng);
@@ -1513,7 +1554,7 @@ async function searchMapLocation() {
       const lng = parseFloat(data[0].lon);
       currentSelectedCoords = { lat, lng };
       if (mapPickerInstance) {
-        mapPickerInstance.setView([lat, lng], 16);
+        mapPickerInstance.setView([lat, lng], 14);
         mapPickerMarker.setLatLng([lat, lng]);
       }
       updateMapCoordsBadge(lat, lng);
