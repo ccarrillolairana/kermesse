@@ -210,15 +210,45 @@
   .bottom-nav {
     position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface-glass);
     backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border);
-    display: flex; z-index: 100; padding: 6px 0 env(safe-area-inset-bottom, 6px); overflow-x: auto;
+    display: flex; justify-content: space-around; z-index: 1000; padding: 6px 4px env(safe-area-inset-bottom, 6px);
   }
-  .bottom-nav a { flex: 0 0 auto; min-width: 64px; display: flex; flex-direction: column; align-items: center; padding: 4px 6px; color: var(--text-muted); font-size: 0.62rem; text-decoration: none; gap: 2px; font-weight: 500; }
+  .bottom-nav a { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; padding: 4px 2px; color: var(--text-muted); font-size: 0.65rem; text-decoration: none; gap: 2px; font-weight: 600; text-align: center; }
   .bottom-nav a i { font-size: 1.15rem; }
-  .bottom-nav a.active { color: var(--cs-indigo-light); font-weight: 700; }
+  .bottom-nav a.active { color: var(--cs-indigo-vivid); font-weight: 700; }
+  .bottom-nav a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 
-  @media (max-width: 991px) {
-    .sidebar { display: none; }
-    .main-content { margin-left: 0; padding: 16px 16px 85px; max-width: 100%; }
+  @media (max-width: 991.98px) {
+    .sidebar {
+      display: flex !important;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 280px;
+      height: 100vh;
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 25px rgba(8, 33, 38, 0.25);
+      z-index: 1050 !important;
+      background: rgba(255, 255, 255, 0.98) !important;
+    }
+    .sidebar.show {
+      transform: translateX(0) !important;
+    }
+    .sidebar-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(8, 33, 38, 0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 1040;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .sidebar-overlay.show {
+      display: block !important;
+      opacity: 1 !important;
+    }
+    .main-content { margin-left: 0; padding: 14px 14px 75px; max-width: 100%; }
     .top-nav { display: flex !important; }
   }
   @media (min-width: 992px) { .bottom-nav { display: none !important; } }
@@ -462,10 +492,15 @@
     <!-- MAIN CONTENT -->
     <div class="main-content">
       <nav class="top-nav">
-        <div class="top-nav-brand"><i class="bi bi-balloon-fill" style="color:var(--cs-teal)"></i> KERMESSE 2026</div>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-sm btn-outline-teal d-lg-none" onclick="toggleMobileSidebar()" title="Abrir Menú Principal">
+            <i class="bi bi-list fs-5"></i>
+          </button>
+          <div class="top-nav-brand"><i class="bi bi-balloon-fill" style="color:var(--cs-teal)"></i> KERMESSE 2026</div>
+        </div>
         <div class="d-flex align-items-center gap-2">
           <span class="badge" style="background:var(--cs-indigo);font-size:.75rem;padding:5px 10px;border-radius:20px" id="topUserRole">Admin</span>
-          <a href="#" onclick="doLogout();return false" class="btn btn-sm btn-light"><i class="bi bi-box-arrow-right text-danger"></i></a>
+          <a href="#" onclick="doLogout();return false" class="btn btn-sm btn-light" title="Cerrar Sesión"><i class="bi bi-box-arrow-right text-danger"></i></a>
         </div>
       </nav>
 
@@ -896,6 +931,31 @@
 
     </div>
   </div>
+
+  <!-- BACKDROP OVERLAY PARA SIDEBAR MÓVIL -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+  <!-- BARRA INFERIOR DE NAVEGACIÓN TÁCTIL (MÓVIL) -->
+  <nav class="bottom-nav">
+    <a href="#" id="bnav-dashboard" class="active" onclick="switchPage('dashboard');return false">
+      <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+    </a>
+    <a href="#" id="bnav-nuevopedido" onclick="switchPage('nuevopedido');return false">
+      <i class="bi bi-cart-plus-fill"></i><span>POS</span>
+    </a>
+    <a href="#" id="bnav-pedidos" onclick="switchPage('pedidos');return false">
+      <i class="bi bi-receipt"></i><span>Pedidos</span>
+    </a>
+    <a href="#" id="bnav-mispedidos" onclick="switchPage('mispedidos');return false">
+      <i class="bi bi-person-badge-fill"></i><span>Repartidor</span>
+    </a>
+    <a href="#" id="bnav-entregas" onclick="switchPage('entregas');return false">
+      <i class="bi bi-truck"></i><span>Despacho</span>
+    </a>
+    <a href="#" onclick="toggleMobileSidebar();return false">
+      <i class="bi bi-grid-fill"></i><span>Menú Más</span>
+    </a>
+  </nav>
 </div>
 
 <!-- ==================== MODAL REGISTRAR PAGO ==================== -->
@@ -1482,6 +1542,20 @@ function renderAllViews() {
 }
 
 // ==================== NAVEGACIÓN ENTRE VISTAS ====================
+function toggleMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (sidebar) sidebar.classList.toggle('show');
+  if (overlay) overlay.classList.toggle('show');
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (sidebar) sidebar.classList.remove('show');
+  if (overlay) overlay.classList.remove('show');
+}
+
 function switchPage(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const target = document.getElementById('page-' + pageId);
@@ -1490,6 +1564,12 @@ function switchPage(pageId) {
   document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
   const navItem = document.getElementById('nav-' + pageId);
   if (navItem) navItem.classList.add('active');
+
+  document.querySelectorAll('.bottom-nav a').forEach(a => a.classList.remove('active'));
+  const bnavItem = document.getElementById('bnav-' + pageId);
+  if (bnavItem) bnavItem.classList.add('active');
+
+  closeMobileSidebar();
 
   if (pageId === 'dashboard') {
     setTimeout(() => {
