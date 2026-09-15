@@ -2113,10 +2113,11 @@ function getOrderPaymentStatus(pedido) {
   const total = parseFloat(pedido.total || 0);
   const pagos = (appState.pagos || []).filter(p => p.pedido_id === pedido.id && p.estado === 'REGISTRADO');
   const pagadoSum = pagos.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0);
+  const saldo = Math.max(0, total - pagadoSum);
 
-  if (pagadoSum <= 0) return { status: 'PENDIENTE', color: 'badge-bad' };
-  if (pagadoSum < total) return { status: 'PAGO PARCIAL', color: 'badge-warn' };
-  return { status: 'PAGADO', color: 'badge-ok' };
+  if (pagadoSum <= 0) return { status: 'PENDIENTE', color: 'badge-bad', pagado: 0, saldo: total, isPagado: false };
+  if (pagadoSum < total - 0.01) return { status: 'PAGO PARCIAL', color: 'badge-warn', pagado: pagadoSum, saldo: saldo, isPagado: false };
+  return { status: 'PAGADO', color: 'badge-ok', pagado: pagadoSum, saldo: 0, isPagado: true };
 }
 
 // ==================== VISTA: NUEVO PEDIDO (POS) ====================
@@ -2260,6 +2261,17 @@ async function submitPosPedido() {
   const pagoTipo = document.getElementById('posPagoTipo').value;
   const pagoRef = document.getElementById('posPagoRef').value;
 
+  const totalSub = posCart.reduce((sum, item) => sum + (item.cantidad * item.precio), 0);
+  const totalPos = Math.max(0, totalSub - desc);
+
+  // Validar cobro total obligatorio en Venta Mostrador / Recojo en Sitio
+  if (entregaId === 'MET000001' && pagoMonto < totalPos - 0.01) {
+    showToast(`⚠️ Venta Mostrador requiere cobro total (Bs ${totalPos.toFixed(2)}). Favor ingresar el pago completo en "Monto Bs".`, "danger");
+    document.getElementById('posPagoMonto').value = totalPos.toFixed(2);
+    document.getElementById('posPagoMonto').focus();
+    return;
+  }
+
   const payload = {
     cliente_nombre: clienteNombre,
     cliente_telefono: clienteTel,
@@ -2364,9 +2376,25 @@ function renderPedidosTable() {
 }
 
 async function cambiarEstadoPedidoSelect(pedidoId, estadoNuevoId) {
+  if (estadoNuevoId === 'EST000009') {
+    const pedido = (appState.pedidos || []).find(p => p.id === pedidoId);
+    if (pedido) {
+      const pgoStatus = getOrderPaymentStatus(pedido);
+      if (!pgoStatus.isPagado) {
+        showToast(`⚠️ IMPOSIBLE ENTREGAR: El pedido ${pedido.numero} tiene un saldo pendiente de Bs ${pgoStatus.saldo.toFixed(2)}. Debe estar PAGADO.`, "danger");
+        renderAllViews();
+        openModalPago(pedidoId);
+        return;
+      }
+    }
+  }
+
   const res = await callApi('cambiarEstadoPedido', { pedido_id: pedidoId, estado_nuevo_id: estadoNuevoId, usuario_id: currentUser.id });
   if (res.success) {
     showToast("Estado actualizado correctamente.");
+    await loadAppState(true);
+  } else {
+    showToast(res.error || "Error al actualizar estado", "danger");
     renderAllViews();
   }
 }
@@ -2388,7 +2416,7 @@ async function submitPagoModal() {
   if (res.success) {
     bootstrap.Modal.getInstance(document.getElementById('modalPago')).hide();
     showToast("Pago registrado correctamente.");
-    renderAllViews();
+    await loadAppState(true);
   } else {
     showToast(res.error || "Error al registrar pago", "danger");
   }
@@ -2459,10 +2487,24 @@ function renderMisPedidosDriver() {
 }
 
 async function driverAction(pedidoId, action) {
+  if (action === 'confirmarEntrega') {
+    const pedido = (appState.pedidos || []).find(p => p.id === pedidoId);
+    if (pedido) {
+      const pgoStatus = getOrderPaymentStatus(pedido);
+      if (!pgoStatus.isPagado) {
+        showToast(`⚠️ IMPOSIBLE CONFIRMAR ENTREGA: El pedido ${pedido.numero} tiene un saldo pendiente de Bs ${pgoStatus.saldo.toFixed(2)}. Debe estar PAGADO.`, "danger");
+        openModalPago(pedidoId);
+        return;
+      }
+    }
+  }
+
   const res = await callApi(action, { pedido_id: pedidoId, usuario_id: currentUser.id });
   if (res.success) {
     showToast(res.message);
-    renderAllViews();
+    await loadAppState(true);
+  } else {
+    showToast(res.error || "Error al actualizar entrega", "danger");
   }
 }
 
@@ -2586,7 +2628,17 @@ function filterRecojoTable() {
 }
 
 async function marcarEntregadoSitio(pedidoId) {
-  if (!confirm("¿Confirmar la entrega de este pedido en sitio/mostrador?")) return;
+  const pedido = (appState.pedidos || []).find(p => p.id === pedidoId);
+  if (!pedido) return;
+
+  const pgoStatus = getOrderPaymentStatus(pedido);
+  if (!pgoStatus.isPagado) {
+    showToast(`⚠️ NO SE PUEDE ENTREGAR EN MOSTRADOR: El pedido ${pedido.numero} tiene un saldo pendiente de Bs ${pgoStatus.saldo.toFixed(2)}. Debe estar PAGADO.`, "danger");
+    openModalPago(pedidoId);
+    return;
+  }
+
+  if (!confirm(`¿Confirmar la entrega en sitio/mostrador del pedido ${pedido.numero}?`)) return;
   const res = await callApi('cambiarEstadoPedido', {
     pedido_id: pedidoId,
     estado_nuevo_id: 'EST000009',

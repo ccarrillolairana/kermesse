@@ -546,6 +546,17 @@ function handleRequest(e) {
         const estadoAnterior = pedido.estado_pedido_id;
         const estadoNuevo = body.estado_nuevo_id;
 
+        // Validar pago total antes de marcar como ENTREGADO (EST000009)
+        if (estadoNuevo === 'EST000009') {
+          const total = parseFloat(pedido.total || 0);
+          const pagos = sheetToJSON(SHEET_PAGOS).filter(p => p.pedido_id === body.pedido_id && p.estado === 'REGISTRADO');
+          const pagadoSum = pagos.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0);
+          if (pagadoSum < total - 0.01) {
+            const saldo = Math.max(0, total - pagadoSum);
+            return jsonResponse({ success: false, error: 'No se puede entregar el pedido ' + (pedido.numero || body.pedido_id) + ' porque tiene un saldo pendiente de Bs ' + saldo.toFixed(2) + '. Debe estar PAGADO para entregar.' });
+          }
+        }
+
         updateRow(SHEET_PEDIDOS, 'id', body.pedido_id, { estado_pedido_id: estadoNuevo, updated_at: now });
 
         appendRow(SHEET_HISTORIAL, {
@@ -624,6 +635,17 @@ function handleRequest(e) {
 
       case 'confirmarEntrega': {
         const now = new Date().toISOString();
+        const pedido = sheetToJSON(SHEET_PEDIDOS).find(p => p.id === body.pedido_id);
+        if (pedido) {
+          const total = parseFloat(pedido.total || 0);
+          const pagos = sheetToJSON(SHEET_PAGOS).filter(p => p.pedido_id === body.pedido_id && p.estado === 'REGISTRADO');
+          const pagadoSum = pagos.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0);
+          if (pagadoSum < total - 0.01) {
+            const saldo = Math.max(0, total - pagadoSum);
+            return jsonResponse({ success: false, error: 'No se puede confirmar la entrega del pedido ' + (pedido.numero || body.pedido_id) + ' porque tiene un saldo pendiente de Bs ' + saldo.toFixed(2) + '.' });
+          }
+        }
+
         const entrega = sheetToJSON(SHEET_ENTREGAS).find(e => e.pedido_id === body.pedido_id && e.estado !== 'ENTREGADO');
         if (entrega) {
           updateRow(SHEET_ENTREGAS, 'id', entrega.id, {
