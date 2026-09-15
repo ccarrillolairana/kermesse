@@ -641,7 +641,7 @@
 
               <div class="totals-box mb-3">
                 <div class="totals-row"><span>Subtotal:</span><span id="posSubtotal">Bs 0.00</span></div>
-                <div class="totals-row"><span>Descuento:</span><span><input type="number" id="posDescuento" value="0" class="form-control form-control-sm text-end style-inline" style="width:70px;display:inline" onchange="calculatePosTotals()"></span></div>
+                <div class="totals-row" style="display:none !important;"><span>Descuento:</span><span><input type="number" id="posDescuento" value="0" class="form-control form-control-sm text-end style-inline" style="width:70px;display:inline" onchange="calculatePosTotals()"></span></div>
                 <div class="totals-row grand"><span>TOTAL:</span><span id="posTotal">Bs 0.00</span></div>
               </div>
 
@@ -1653,18 +1653,33 @@ function renderDashboardMap() {
     dashMapInstance = null;
   }
 
-  const pedidosDelivery = (appState.pedidos || []).filter(p => p.estado_pedido_id !== 'EST000010' && p.estado_pedido_id !== 'EST000009');
+  const isRecojoSitio = (p) => {
+    const m = String(p.metodo_entrega_id || '').toUpperCase();
+    return m === 'MET000001' || m === 'RECOJO_SITIO' || m.includes('RECOJO');
+  };
+
+  const hasValidCoords = (p) => {
+    if (!p.latitud || !p.longitud) return false;
+    const lat = parseFloat(p.latitud);
+    const lng = parseFloat(p.longitud);
+    return !isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0);
+  };
+
+  // Filtrar solo pedidos activos de entregas/domicilio que tengan coordenadas válidas
+  const pedidosDelivery = (appState.pedidos || []).filter(p => {
+    const isActivo = p.estado_pedido_id !== 'EST000010' && p.estado_pedido_id !== 'EST000009';
+    return isActivo && !isRecojoSitio(p) && hasValidCoords(p);
+  });
   
   const mapBadge = document.getElementById('dashMapDeliveryCount');
-  if (mapBadge) mapBadge.innerText = `${pedidosDelivery.length} Entregas Activas`;
+  if (mapBadge) mapBadge.innerText = `${pedidosDelivery.length} Entregas en Mapa`;
 
   let centerLat = -17.74262424990081;
   let centerLng = -63.18473051459858;
 
-  const firstWithCoords = pedidosDelivery.find(p => p.latitud && p.longitud);
-  if (firstWithCoords) {
-    centerLat = parseFloat(firstWithCoords.latitud);
-    centerLng = parseFloat(firstWithCoords.longitud);
+  if (pedidosDelivery.length > 0) {
+    centerLat = parseFloat(pedidosDelivery[0].latitud);
+    centerLng = parseFloat(pedidosDelivery[0].longitud);
   }
 
   dashMapInstance = L.map('dashMapEntregas').setView([centerLat, centerLng], 13);
@@ -1682,10 +1697,8 @@ function renderDashboardMap() {
     const cliTel = p.cliente_telefono || cli.telefono || '0';
     const dir = p.direccion_entrega || cli.direccion || 'Sin dirección registrada';
 
-    let lat = parseFloat(p.latitud || cli.latitud);
-    let lng = parseFloat(p.longitud || cli.longitud);
-
-    if (isNaN(lat) || isNaN(lng)) return;
+    const lat = parseFloat(p.latitud);
+    const lng = parseFloat(p.longitud);
 
     const estObj = appState.estadosPedido.find(e => e.id === p.estado_pedido_id) || { nombre: p.estado_pedido_id, color: 'badge-neutral' };
     const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
@@ -1710,7 +1723,11 @@ function renderDashboardMap() {
 
   if (markersGroup.getLayers().length > 0) {
     markersGroup.addTo(dashMapInstance);
-    dashMapInstance.fitBounds(markersGroup.getBounds().pad(0.15));
+    if (markersGroup.getLayers().length > 1) {
+      dashMapInstance.fitBounds(markersGroup.getBounds().pad(0.15));
+    } else {
+      dashMapInstance.setView([centerLat, centerLng], 15);
+    }
   }
 
   setTimeout(() => {
