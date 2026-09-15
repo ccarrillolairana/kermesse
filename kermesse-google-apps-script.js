@@ -257,7 +257,7 @@ function handleRequest(e) {
     try { body = JSON.parse(e.parameter.data); } catch (err) { }
   }
 
-  const isWriteAction = ['savePedido', 'savePago', 'cambiarEstadoPedido', 'asignarEntrega', 'saveAyudaEconomica', 'saveCategoria', 'saveProducto', 'crearRendicion', 'aprobarRendicion', 'cerrarKermesse'].indexOf(action) !== -1;
+  const isWriteAction = ['savePedido', 'savePago', 'cambiarEstadoPedido', 'asignarEntrega', 'desasignarEntrega', 'saveAyudaEconomica', 'saveCategoria', 'saveProducto', 'crearRendicion', 'aprobarRendicion', 'cerrarKermesse'].indexOf(action) !== -1;
   const lock = LockService.getScriptLock();
   let hasLock = false;
   if (isWriteAction) {
@@ -610,6 +610,42 @@ function handleRequest(e) {
         });
 
         return jsonResponse({ success: true, message: pedidoIds.length + ' pedidos asignados correctamente.' });
+      }
+
+      case 'desasignarEntrega': {
+        const now = new Date().toISOString();
+        const pedId = body.pedido_id;
+        if (!pedId) return jsonResponse({ success: false, error: 'ID de pedido requerido.' });
+
+        const pedido = sheetToJSON(SHEET_PEDIDOS).find(p => p.id === pedId);
+        if (!pedido) return jsonResponse({ success: false, error: 'Pedido no encontrado.' });
+
+        const estadoAnterior = pedido.estado_pedido_id;
+
+        const entrega = sheetToJSON(SHEET_ENTREGAS).find(e => e.pedido_id === pedId && e.estado !== 'ENTREGADO');
+        if (entrega) {
+          updateRow(SHEET_ENTREGAS, 'id', entrega.id, {
+            estado: 'DESASIGNADO',
+            updated_at: now
+          });
+        }
+
+        updateRow(SHEET_PEDIDOS, 'id', pedId, {
+          estado_pedido_id: 'EST000004', // LISTO_DESPACHO
+          updated_at: now
+        });
+
+        appendRow(SHEET_HISTORIAL, {
+          id: generateNextId(SHEET_HISTORIAL, 'id', 'HST'),
+          pedido_id: pedId,
+          estado_anterior_id: estadoAnterior,
+          estado_nuevo_id: 'EST000004',
+          usuario_id: body.usuario_id || 'USR000001',
+          fecha: now,
+          observaciones: 'Entrega desasignada de repartidor. Devuelto a cola de despacho.'
+        });
+
+        return jsonResponse({ success: true, message: 'Pedido desasignado y devuelto a la lista de despacho.' });
       }
 
       case 'iniciarEntrega': {

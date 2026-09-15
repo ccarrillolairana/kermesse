@@ -2475,6 +2475,7 @@ function renderMisPedidosDriver() {
         <div class="d-flex gap-2 mt-2">
           ${est === 'EST000005' ? `<button class="btn btn-primary btn-sm flex-fill fw-bold" onclick="driverAction('${p.id}', 'iniciarEntrega')"><i class="bi bi-play-circle me-1"></i>INICIAR ENTREGA</button>` : ''}
           ${est === 'EST000006' ? `<button class="btn btn-success btn-sm flex-fill fw-bold" onclick="driverAction('${p.id}', 'confirmarEntrega')"><i class="bi bi-check-circle me-1"></i>CONFIRMAR ENTREGADO</button>` : ''}
+          ${(est === 'EST000005' || est === 'EST000006') ? `<button class="btn btn-outline-danger btn-sm fw-bold" onclick="desasignarPedidoDriver('${p.id}')" title="Desasignar pedido para reasignar a otro repartidor"><i class="bi bi-x-circle me-1"></i>Desasignar</button>` : ''}
           ${est === 'EST000009' ? `<span class="badge-pill badge-ok py-2 px-3 flex-fill text-center"><i class="bi bi-check-all me-1"></i>PEDIDO ENTREGADO</span>` : ''}
         </div>
       </div>
@@ -2505,6 +2506,25 @@ async function driverAction(pedidoId, action) {
     await loadAppState(true);
   } else {
     showToast(res.error || "Error al actualizar entrega", "danger");
+  }
+}
+
+async function desasignarPedidoDriver(pedidoId) {
+  const pedido = (appState.pedidos || []).find(p => p.id === pedidoId);
+  const num = pedido ? pedido.numero : pedidoId;
+
+  if (!confirm(`¿Desasignar el pedido ${num} para devolverlo a la cola de despacho y asignarlo a otro repartidor?`)) return;
+
+  const res = await callApi('desasignarEntrega', {
+    pedido_id: pedidoId,
+    usuario_id: currentUser.id
+  });
+
+  if (res.success) {
+    showToast(`Pedido ${num} desasignado correctamente.`);
+    await loadAppState(true);
+  } else {
+    showToast(res.error || "Error al desasignar el pedido.", "danger");
   }
 }
 
